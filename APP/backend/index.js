@@ -1,58 +1,25 @@
-const express = require('express');
-const mongoose = require('mongoose');
-const cors = require('cors');
-
-// 📦 Importar modelo
-const Sala = require('./models/Sala');
+import express from 'express';
+import mongoose from 'mongoose';
+import cors from 'cors';
+import salasRoutes from './routes/salas.js';
 
 const app = express();
 app.use(cors());
 app.use(express.json());
 
-// 🔌 Conectar a MongoDB
-mongoose.connect('mongodb://127.0.0.1:27017/meanapp')
-  .then(() => console.log('MongoDB conectado'))
-  .catch(err => console.error(err));
+// URI de MongoDB directamente
+const mongoUri = 'mongodb://localhost:27017/salasdb'; // Cambia 'salasdb' si quieres
 
-// 🧪 Ruta de prueba
-app.get('/', (req, res) => {
-  res.send('API funcionando');
-});
+// Conexión a MongoDB sin opciones obsoletas
+mongoose.connect(mongoUri)
+  .then(() => console.log('✅ MongoDB conectado'))
+  .catch(err => {
+    console.error('❌ Error al conectar con MongoDB:', err);
+    process.exit(1);
+  });
 
-// 📄 Obtener todas las salas
-app.get('/salas', async (req, res) => {
-  try {
-    const salas = await Sala.find();
-    res.json(salas);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
+// Rutas
+app.use('/salas', salasRoutes);
 
-// 🏫 Crear una nueva sala
-app.post('/salas', async (req, res) => {
-  try {
-    const { numeroSala, personasDentro, ruidoDb, horaEntrada, horaSalida } = req.body;
-
-    // Crear instancia del modelo
-    const nuevaSala = new Sala({
-      numeroSala,
-      personasDentro,
-      ruidoDb,
-      horaEntrada,
-      horaSalida
-    });
-
-    // Guardar en MongoDB
-    const salaGuardada = await nuevaSala.save();
-    res.status(201).json(salaGuardada);
-
-  } catch (error) {
-    res.status(400).json({ error: error.message });
-  }
-});
-
-// 🚀 Arranque del servidor
-app.listen(3000, () => {
-  console.log('Servidor en http://localhost:3000');
-});
+const PORT = 3000;
+app.listen(PORT, () => console.log(`🚀 Servidor corriendo en puerto ${PORT}`));

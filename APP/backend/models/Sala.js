@@ -1,35 +1,11 @@
-const mongoose = require('mongoose');
+import mongoose from 'mongoose';
 
 const SalaSchema = new mongoose.Schema({
-  numeroSala: {
-    type: Number,
-    required: true,
-    unique: true
-  },
-
-  personasDentro: {
-    type: Number,
-    required: true,
-    min: 0
-  },
-
-  ruidoDb: {
-    type: Number,
-    required: true,
-    min: 0
-  },
-
-  horaEntrada: {
-    type: Date,
-    required: true
-  },
-
-  horaSalida: {
-    type: Date,
-    required: false
-  }
-}, {
-  timestamps: true
+  numeroSala: { type: Number, required: true },
+  personasDentro: { type: Number, required: true },
+  ruidoDb: { type: Number, required: true },
+  horaEntrada: { type: Date, required: true },
+  horaSalida: { type: Date },
 });
 
-module.exports = mongoose.model('Sala', SalaSchema);
+export default mongoose.model('Sala', SalaSchema);

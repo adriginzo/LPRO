@@ -1,4 +1,3 @@
-// services/salas.ts
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
@@ -8,13 +7,13 @@ export interface Sala {
   numeroSala: number;
   personasDentro: number;
   ruidoDb: number;
-  horaEntrada: Date;
-  horaSalida?: Date;
+  horaEntrada: string | Date;
+  horaSalida?: string | Date;
 }
 
 @Injectable({ providedIn: 'root' })
 export class SalasService {
-  private apiUrl = 'http://localhost:3000/salas'; // Ajusta al endpoint de tu backend
+  private apiUrl = 'http://localhost:3000/salas';
 
   constructor(private http: HttpClient) {}
 
@@ -32,5 +31,9 @@ export class SalasService {
 
   deleteSala(id: string): Observable<void> {
     return this.http.delete<void>(`${this.apiUrl}/${id}`);
+  }
+
+  deleteAllSalas(): Observable<void> {
+    return this.http.delete<void>(this.apiUrl);
   }
 }

@@ -19,7 +19,12 @@
     <label>Hora de entrada:</label>
     <input type="datetime-local" [(ngModel)]="nuevaSala.horaEntrada">
   </div>
+  <div class="form-group">
+    <label>Hora de salida:</label>
+    <input type="datetime-local" [(ngModel)]="nuevaSala.horaSalida">
+  </div>
   <button (click)="crearSala()">Crear Sala</button>
+  <button (click)="borrarTodasLasSalas()">Borrar todas las salas</button>
 </section>
 
 <hr>

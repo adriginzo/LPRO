@@ -1,4 +1,3 @@
-// components/admin-salas/admin-salas.ts
 import { Component, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -14,29 +13,71 @@ import { SalasService, Sala } from '../../services/salas';
 })
 export class AdminSalasComponent {
   salas = signal<Sala[]>([]);
-  nuevaSala: Sala = { numeroSala: 0, personasDentro: 0, ruidoDb: 0, horaEntrada: new Date() };
+  nuevaSala: Sala = { 
+    numeroSala: 0, 
+    personasDentro: 0, 
+    ruidoDb: 0, 
+    horaEntrada: this.fechaLocal(new Date()), 
+    horaSalida: this.fechaLocal(new Date()) 
+  };
 
   constructor(private salasService: SalasService) {
     this.cargarSalas();
   }
 
+  // Convierte Date a string compatible con datetime-local
+  fechaLocal(date: Date): string {
+    const d = new Date(date);
+    d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
+    return d.toISOString().slice(0,16);
+  }
+
   cargarSalas() {
-    this.salasService.getSalas().subscribe((data) => this.salas.set(data));
+    this.salasService.getSalas().subscribe((data) => {
+      const salasConFechas = data.map(s => ({
+        ...s,
+        horaEntrada: s.horaEntrada ? this.fechaLocal(new Date(s.horaEntrada)) : '',
+        horaSalida: s.horaSalida ? this.fechaLocal(new Date(s.horaSalida)) : ''
+      }));
+      this.salas.set(salasConFechas);
+    });
   }
 
   crearSala() {
-    this.salasService.createSala(this.nuevaSala).subscribe(() => {
-      this.nuevaSala = { numeroSala: 0, personasDentro: 0, ruidoDb: 0, horaEntrada: new Date() };
+    // Solo convierte si hay valor
+    const salaParaEnviar: Sala = {
+      ...this.nuevaSala,
+      horaEntrada: new Date(this.nuevaSala.horaEntrada),
+      horaSalida: this.nuevaSala.horaSalida ? new Date(this.nuevaSala.horaSalida) : undefined
+    };
+    this.salasService.createSala(salaParaEnviar).subscribe(() => {
+      this.nuevaSala = { 
+        numeroSala: 0, 
+        personasDentro: 0, 
+        ruidoDb: 0, 
+        horaEntrada: this.fechaLocal(new Date()), 
+        horaSalida: this.fechaLocal(new Date())
+      };
       this.cargarSalas();
     });
+  }
+
+  actualizarSala(sala: Sala) {
+    if (!sala._id) return;
+    const salaParaEnviar: Sala = {
+      ...sala,
+      horaEntrada: new Date(sala.horaEntrada),
+      horaSalida: sala.horaSalida ? new Date(sala.horaSalida) : undefined
+    };
+    this.salasService.updateSala(sala._id, salaParaEnviar).subscribe(() => this.cargarSalas());
   }
 
   eliminarSala(id: string) {
     this.salasService.deleteSala(id).subscribe(() => this.cargarSalas());
   }
 
-  actualizarSala(sala: Sala) {
-    if (!sala._id) return;
-    this.salasService.updateSala(sala._id, sala).subscribe(() => this.cargarSalas());
+  borrarTodasLasSalas() {
+    if (!confirm('¿Estás seguro de borrar todas las salas?')) return;
+    this.salasService.deleteAllSalas().subscribe(() => this.cargarSalas());
   }
 }
