@@ -1,0 +1,55 @@
+<h1>Administración de Salas</h1>
+
+<!-- CREAR NUEVA SALA -->
+<section class="crear-sala">
+  <h2>Crear nueva sala</h2>
+  <div class="form-group">
+    <label>Número de Sala:</label>
+    <input type="number" [(ngModel)]="nuevaSala.numeroSala" placeholder="Número Sala">
+  </div>
+  <div class="form-group">
+    <label>Personas dentro:</label>
+    <input type="number" [(ngModel)]="nuevaSala.personasDentro" placeholder="Personas dentro">
+  </div>
+  <div class="form-group">
+    <label>Ruido (dB):</label>
+    <input type="number" [(ngModel)]="nuevaSala.ruidoDb" placeholder="Ruido dB">
+  </div>
+  <div class="form-group">
+    <label>Hora de entrada:</label>
+    <input type="datetime-local" [(ngModel)]="nuevaSala.horaEntrada">
+  </div>
+  <button (click)="crearSala()">Crear Sala</button>
+</section>
+
+<hr>
+
+<!-- LISTA Y MODIFICACIÓN DE SALAS -->
+<section class="lista-salas">
+  <h2>Salas existentes</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>Número</th>
+        <th>Personas</th>
+        <th>Ruido (dB)</th>
+        <th>Hora Entrada</th>
+        <th>Hora Salida</th>
+        <th>Acciones</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr *ngFor="let sala of salas()">
+        <td><input type="number" [(ngModel)]="sala.numeroSala"></td>
+        <td><input type="number" [(ngModel)]="sala.personasDentro"></td>
+        <td><input type="number" [(ngModel)]="sala.ruidoDb"></td>
+        <td><input type="datetime-local" [(ngModel)]="sala.horaEntrada"></td>
+        <td><input type="datetime-local" [(ngModel)]="sala.horaSalida"></td>
+        <td>
+          <button (click)="actualizarSala(sala)">Guardar</button>
+          <button (click)="eliminarSala(sala._id!)">Eliminar</button>
+        </td>
+      </tr>
+    </tbody>
+  </table>
+</section>
