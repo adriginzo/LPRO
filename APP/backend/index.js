@@ -18,7 +18,7 @@ mongoose.connect(mongoUri)
     process.exit(1);
   });
 
-// Rutas
+// RAIZ DEL BACKEND
 app.use('/salas', salasRoutes);
 
 const PORT = 3000;

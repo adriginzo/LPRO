@@ -36,6 +36,36 @@ router.post('/', async (req, res) => {
   }
 });
 
+// PATCH /salas/:id/personas - actualizar solo personasDentro (sensor)
+router.patch('/:id/personas', async (req, res) => {
+  try {
+    const { personasDentro } = req.body;
+
+    // Validación básica
+    if (personasDentro === undefined) {
+      return res.status(400).json({ error: 'personasDentro es obligatorio' });
+    }
+
+    if (typeof personasDentro !== 'number' || personasDentro < 0) {
+      return res.status(400).json({ error: 'personasDentro debe ser un número válido' });
+    }
+
+    const salaActualizada = await Sala.findByIdAndUpdate(
+      req.params.id,
+      { personasDentro },
+      { new: true }
+    );
+
+    if (!salaActualizada) {
+      return res.status(404).json({ error: 'Sala no encontrada' });
+    }
+
+    res.json(salaActualizada);
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
 // Actualizar una sala
 router.put('/:id', async (req, res) => {
   try {
