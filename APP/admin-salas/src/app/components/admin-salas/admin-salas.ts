@@ -25,7 +25,6 @@ export class AdminSalasComponent {
     this.cargarSalas();
   }
 
-  // Convierte Date a string compatible con datetime-local
   fechaLocal(date: Date): string {
     const d = new Date(date);
     d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
@@ -44,7 +43,6 @@ export class AdminSalasComponent {
   }
 
   crearSala() {
-    // Solo convierte si hay valor
     const salaParaEnviar: Sala = {
       ...this.nuevaSala,
       horaEntrada: new Date(this.nuevaSala.horaEntrada),
@@ -70,6 +68,11 @@ export class AdminSalasComponent {
       horaSalida: sala.horaSalida ? new Date(sala.horaSalida) : undefined
     };
     this.salasService.updateSala(sala._id, salaParaEnviar).subscribe(() => this.cargarSalas());
+  }
+
+  actualizarPersonas(sala: Sala) {
+    if (!sala._id) return;
+    this.salasService.updatePersonas(sala._id, sala.personasDentro).subscribe(() => this.cargarSalas());
   }
 
   eliminarSala(id: string) {

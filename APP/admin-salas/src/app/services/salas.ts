@@ -13,7 +13,7 @@ export interface Sala {
 
 @Injectable({ providedIn: 'root' })
 export class SalasService {
-  private apiUrl = 'http://100.80.240.31:3000/salas';
+  private apiUrl = 'http://100.80.240.31:3000/salas'; // <- actualizado a NestJS
 
   constructor(private http: HttpClient) {}
 
@@ -35,5 +35,9 @@ export class SalasService {
 
   deleteAllSalas(): Observable<void> {
     return this.http.delete<void>(this.apiUrl);
+  }
+
+  updatePersonas(id: string, personasDentro: number): Observable<Sala> {
+    return this.http.patch<Sala>(`${this.apiUrl}/${id}/personas`, { personasDentro });
   }
 }

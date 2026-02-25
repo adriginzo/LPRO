@@ -6,6 +6,7 @@ import { appConfig } from './app/app.config';
 import { provideRouter } from '@angular/router';
 import { routes } from './app/app.routes';
 
+
 bootstrapApplication(App, {
   providers: [
     provideHttpClient(), // <-- reemplaza HttpClientModule
