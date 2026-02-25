@@ -13,7 +13,7 @@ export interface Sala {
 
 @Injectable({ providedIn: 'root' })
 export class SalasService {
-  private apiUrl = 'http://localhost:3000/salas';
+  private apiUrl = 'http://100.80.240.31:3000/salas';
 
   constructor(private http: HttpClient) {}
 
