@@ -1,14 +1,19 @@
-<h2>User Area</h2>
+<div class="user-area-container">
+  <h1>User Area</h1>
 
-<ul>
-  <li *ngFor="let user of users">
-    {{ user.nombre }} {{ user.apellidos }} - {{ user.email }}
-  </li>
-</ul>
+  <button *ngIf="isAdmin" (click)="goToAdminPanel()">Go to Admin Panel</button>
 
-<button
-  *ngIf="abilityService.ability.can('read', 'AdminPanel')"
-  (click)="goToAdminPanel()"
->
-  Go to Admin Panel
-</button>
+  <div *ngIf="users$ | async as users; else noUsers">
+    <ul>
+      <li *ngFor="let user of users">
+        <span class="user-name">{{ user.firstName }} {{ user.lastName }}</span>
+        <span class="user-email">{{ user.email }}</span>
+        <span class="user-type">{{ user.type }}</span>
+      </li>
+    </ul>
+  </div>
+
+  <ng-template #noUsers>
+    <p>No users found.</p>
+  </ng-template>
+</div>

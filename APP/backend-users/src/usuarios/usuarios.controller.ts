@@ -1,5 +1,5 @@
 // src/users/users.controller.ts
-import { Controller, Get, Post, Put, Delete, Param, Body } from '@nestjs/common';
+import { Controller, Get, Post, Put, Delete, Param, Body, UnauthorizedException } from '@nestjs/common';
 import { UsersService } from './usuarios.service';
 import { User } from './schemas/usuario.schema';
 
@@ -35,5 +35,13 @@ export class UsersController {
   @Delete()
   removeAll() {
     return this.usersService.removeAll();
+  }
+
+  // Login endpoint
+  @Post('login')
+  async login(@Body('email') email: string, @Body('password') password: string) {
+    const user = await this.usersService.validateUser(email, password);
+    if (!user) throw new UnauthorizedException('Invalid credentials');
+    return this.usersService.login(user);
   }
 }

@@ -1,53 +1,49 @@
+// src/app/services/auth.service.ts
 import { Injectable } from '@angular/core';
+import { HttpClient } from '@angular/common/http';
 import { Router } from '@angular/router';
+import { Observable, tap } from 'rxjs';
 import { jwtDecode } from 'jwt-decode';
-import { AbilityService } from './ability';
 
 @Injectable({ providedIn: 'root' })
 export class AuthService {
-  private tokenKey = 'token';
+  private baseUrl = 'http://localhost:3001';
 
-  constructor(
-    private router: Router,
-    private abilityService: AbilityService
-  ) {}
+  constructor(private http: HttpClient, private router: Router) {}
 
-  login(email: string, password: string) {
-    // FAKE LOGIN (replace with backend call)
-    const fakeToken = JSON.stringify({
-      email,
-      type: email === 'admin@test.com' ? 'admin' : 'user'
-    });
+  login(email: string, password: string): Observable<any> {
+    return this.http
+      .post(`${this.baseUrl}/users/login`, { email, password })
+      .pipe(
+        tap((res: any) => localStorage.setItem('token', res.access_token))
+      );
+  }
 
-    localStorage.setItem(this.tokenKey, fakeToken);
-    this.setAbilities();
-    this.router.navigate(['/user-area']);
+  register(user: any): Observable<any> {
+    return this.http.post(`${this.baseUrl}/users`, user);
   }
 
   logout() {
-    localStorage.removeItem(this.tokenKey);
+    localStorage.removeItem('token');
     this.router.navigate(['/login']);
   }
 
-  isLoggedIn(): boolean {
-    return !!localStorage.getItem(this.tokenKey);
+  getToken(): string | null {
+    return localStorage.getItem('token');
   }
 
-  getUserType(): string | null {
-    const token = localStorage.getItem(this.tokenKey);
+  getUser(): any {
+    const token = this.getToken();
     if (!token) return null;
-    return JSON.parse(token).type;
+    return jwtDecode(token);
   }
 
-  private setAbilities() {
-    const type = this.getUserType();
+  isLoggedIn(): boolean {
+    return !!this.getToken();
+  }
 
-    if (type === 'admin') {
-      this.abilityService.update([
-        { action: 'read', subject: 'AdminPanel' }
-      ]);
-    } else {
-      this.abilityService.update([]);
-    }
+  isAdmin(): boolean {
+    const user = this.getUser();
+    return user?.type === 'admin';
   }
 }

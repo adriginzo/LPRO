@@ -1,29 +1,29 @@
-import { Component, OnInit } from '@angular/core';
+import { Component } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { UserService } from '../../services/user';
-import { AbilityService } from '../../services/ability';
+import { HttpClient } from '@angular/common/http';
+import { AuthService } from '../../services/auth';
+import { Observable } from 'rxjs';
 
 @Component({
   selector: 'app-user-area',
   standalone: true,
   imports: [CommonModule],
-  templateUrl: './user-area.html'
+  templateUrl: './user-area.html',
+  styleUrls: ['./user-area.css']
 })
-export class UserAreaComponent implements OnInit {
-  users: any[] = [];
+export class UserAreaComponent {
+  users$: Observable<any[]>; // Observable de usuarios
+  isAdmin = false;
 
   constructor(
-    private userService: UserService,
-    public abilityService: AbilityService
-  ) {}
-
-  ngOnInit() {
-    this.userService.getUsers().subscribe(users => {
-      this.users = users;
-    });
+    private auth: AuthService,
+    private http: HttpClient
+  ) {
+    this.isAdmin = this.auth.isAdmin();
+    this.users$ = this.http.get<any[]>('http://localhost:3001/users');
   }
 
   goToAdminPanel() {
-    window.location.href = 'http://localhost:4200';
+    window.location.href = 'http://localhost:4200/admin-salas';
   }
 }
