@@ -29,6 +29,9 @@ export class User {
 
   @Prop({ required: true, trim: true })
   type: string;
+
+  @Prop({ required: true, trim: true })
+  password: string;
 }
 
 export const UserSchema = SchemaFactory.createForClass(User);

@@ -1,0 +1,14 @@
+<h2>User Area</h2>
+
+<ul>
+  <li *ngFor="let user of users">
+    {{ user.nombre }} {{ user.apellidos }} - {{ user.email }}
+  </li>
+</ul>
+
+<button
+  *ngIf="abilityService.ability.can('read', 'AdminPanel')"
+  (click)="goToAdminPanel()"
+>
+  Go to Admin Panel
+</button>
