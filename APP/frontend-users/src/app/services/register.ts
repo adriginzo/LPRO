@@ -16,7 +16,7 @@ export interface UserRegisterDTO {
 
 @Injectable({ providedIn: 'root' })
 export class RegisterService {
-  private apiUrl = 'http://localhost:3001'; // tu backend NestJS
+  private apiUrl = 'http://100.80.240.31:3001'; // tu backend NestJS
 
   constructor(private http: HttpClient) {}
 

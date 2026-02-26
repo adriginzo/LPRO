@@ -24,6 +24,6 @@ export class UserAreaComponent {
   }
 
   goToAdminPanel() {
-    window.location.href = 'http://localhost:4200/admin-salas';
+    window.location.href = 'http://100.80.240.31:4200/admin-salas';
   }
 }
