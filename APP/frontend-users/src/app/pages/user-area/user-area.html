@@ -1,7 +1,12 @@
-<div class="user-area-container">
+<div class="user-area-container card">
   <h1>User Area</h1>
 
-  <button *ngIf="isAdmin" (click)="goToAdminPanel()">Go to Admin Panel</button>
+  <button
+    class="btn-primary"
+    *ngIf="isAdmin"
+    (click)="goToAdminPanel()">
+    Go to Admin Panel
+  </button>
 
   <div *ngIf="users$ | async as users; else noUsers">
     <ul>
