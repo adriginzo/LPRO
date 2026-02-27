@@ -20,7 +20,7 @@ export class UserAreaComponent {
     private http: HttpClient
   ) {
     this.isAdmin = this.auth.isAdmin();
-    this.users$ = this.http.get<any[]>('http://localhost:3001/users');
+    this.users$ = this.http.get<any[]>('http://100.80.240.31:3001/users');
   }
 
   goToAdminPanel() {
