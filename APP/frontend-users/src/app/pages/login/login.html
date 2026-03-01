@@ -1,20 +1,50 @@
-<h2>Login</h2>
+<!-- src/app/pages/login/login.html -->
+<div class="login-page">
+  <div class="login-card">
+    <div class="login-header">
+      <h2 class="login-title">Log In</h2>
+    </div>
 
-<form (ngSubmit)="login()">
-  <input
-    [(ngModel)]="email"
-    name="email"
-    placeholder="Email"
-    required
-  />
+    <form class="login-form" (ngSubmit)="login()">
+      <div class="field">
+        <label class="label" for="email">Email</label>
+        <input
+          class="input"
+          id="email"
+          [(ngModel)]="email"
+          name="email"
+          type="email"
+          placeholder="you@example.com"
+          required
+          autocomplete="email"
+        />
+      </div>
 
-  <input
-    [(ngModel)]="password"
-    name="password"
-    type="password"
-    placeholder="Password"
-    required
-  />
+      <div class="field">
+        <label class="label" for="password">Password</label>
+        <input
+          class="input"
+          id="password"
+          [(ngModel)]="password"
+          name="password"
+          type="password"
+          placeholder="Your password"
+          required
+          autocomplete="current-password"
+        />
+      </div>
 
-  <button type="submit">Login</button>
-</form>
+      <button class="btn btn-primary" type="submit">
+        Log in
+      </button>
+
+      <div class="divider">
+        <span>or</span>
+      </div>
+
+      <a class="btn btn-ghost" routerLink="/register">
+        Create account
+      </a>
+    </form>
+  </div>
+</div>

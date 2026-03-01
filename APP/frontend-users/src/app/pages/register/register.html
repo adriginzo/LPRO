@@ -1,20 +1,138 @@
-<h2>Register</h2>
+<!-- src/app/pages/register/register.html -->
+<div class="register-page">
+  <div class="register-card">
+    <div class="register-header">
+      <h2 class="register-title">Create your account</h2>
+    </div>
 
-<form (ngSubmit)="register()">
-  <input [(ngModel)]="firstName" name="firstName" placeholder="First name" required />
-  <input [(ngModel)]="lastName" name="lastName" placeholder="Last name" required />
-  <input [(ngModel)]="email" name="email" type="email" placeholder="Email" required />
-  <input [(ngModel)]="dni" name="dni" placeholder="DNI" required />
-  <input [(ngModel)]="school" name="school" placeholder="School" />
-  <input [(ngModel)]="degree" name="degree" placeholder="Degree" />
-  <input [(ngModel)]="phone" name="phone" placeholder="Phone" />
+    <form class="register-form" (ngSubmit)="register()">
+      <div class="grid-2">
+        <div class="field">
+          <label class="label" for="firstName">First name</label>
+          <input
+            class="input"
+            id="firstName"
+            [(ngModel)]="firstName"
+            name="firstName"
+            placeholder="FirstName"
+            required
+            autocomplete="given-name"
+          />
+        </div>
 
-  <select [(ngModel)]="type" name="type">
-    <option value="user">User</option>
-    <option value="admin">Admin</option>
-  </select>
+        <div class="field">
+          <label class="label" for="lastName">Last name</label>
+          <input
+            class="input"
+            id="lastName"
+            [(ngModel)]="lastName"
+            name="lastName"
+            placeholder="LastName"
+            required
+            autocomplete="family-name"
+          />
+        </div>
+      </div>
 
-  <input [(ngModel)]="password" name="password" type="password" placeholder="Password" required />
+      <div class="field">
+        <label class="label" for="email">Email</label>
+        <input
+          class="input"
+          id="email"
+          [(ngModel)]="email"
+          name="email"
+          type="email"
+          placeholder="you@example.com"
+          required
+          autocomplete="email"
+        />
+      </div>
 
-  <button type="submit">Register</button>
-</form>
+      <div class="grid-2">
+        <div class="field">
+          <label class="label" for="dni">DNI</label>
+          <input
+            class="input"
+            id="dni"
+            [(ngModel)]="dni"
+            name="dni"
+            placeholder="12345678X"
+            required
+            autocomplete="off"
+          />
+        </div>
+
+        <div class="field">
+          <label class="label" for="phone">Phone</label>
+          <input
+            class="input"
+            id="phone"
+            [(ngModel)]="phone"
+            name="phone"
+            placeholder="+34 600 000 000"
+            autocomplete="tel"
+          />
+        </div>
+      </div>
+
+      <div class="grid-2">
+        <div class="field">
+          <label class="label" for="school">School</label>
+          <input
+            class="input"
+            id="school"
+            [(ngModel)]="school"
+            name="school"
+            placeholder="School"
+            autocomplete="organization"
+          />
+        </div>
+
+        <div class="field">
+          <label class="label" for="degree">Degree</label>
+          <input
+            class="input"
+            id="degree"
+            [(ngModel)]="degree"
+            name="degree"
+            placeholder="Degree"
+            autocomplete="off"
+          />
+        </div>
+      </div>
+
+      <div class="grid-2">
+        <div class="field">
+          <label class="label" for="type">Account type</label>
+          <select class="select" id="type" [(ngModel)]="type" name="type">
+            <option value="user">User</option>
+            <option value="admin">Admin</option>
+          </select>
+        </div>
+
+        <div class="field">
+          <label class="label" for="password">Password</label>
+          <input
+            class="input"
+            id="password"
+            [(ngModel)]="password"
+            name="password"
+            type="password"
+            placeholder="Create a password"
+            required
+            autocomplete="new-password"
+          />
+        </div>
+      </div>
+
+      <button class="btn btn-primary" type="submit">
+        Create account
+      </button>
+
+      <div class="register-footer">
+        <span>Already have an account?</span>
+        <a class="link" routerLink="/login">Log in</a>
+      </div>
+    </form>
+  </div>
+</div>

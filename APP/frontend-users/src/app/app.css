@@ -14,7 +14,7 @@
 .app-header__inner{
   max-width: 1100px;
   margin: 0 auto;
-  height: 70px;
+  height: 80px;            /* ⬅️ antes 70px */
   padding: 0 20px;
 
   display: flex;
@@ -29,6 +29,14 @@
   color: #1e3a8a;
 }
 
-.app-logo{
-  height: 36px;
+.app-logo {
+  height: 56px;            /* ⬅️ antes 36px */
+  width: auto;
+  display: block;
+  object-fit: contain;
+}
+
+.app-main{
+  min-height: calc(100vh - 80px); /* 80px si tu header inner mide 80 */
+  background: #f6f7fb;
 }
