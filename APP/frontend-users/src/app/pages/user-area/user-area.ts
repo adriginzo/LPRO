@@ -3,7 +3,15 @@ import { Component } from '@angular/core';
 import { CommonModule, DatePipe } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
 import { AuthService } from '../../services/auth';
-import { Observable, BehaviorSubject, combineLatest, map, shareReplay } from 'rxjs';
+import {
+  Observable,
+  BehaviorSubject,
+  combineLatest,
+  map,
+  shareReplay,
+  interval,
+  startWith,
+} from 'rxjs';
 import { FormsModule } from '@angular/forms';
 
 type Sala = {
@@ -16,6 +24,11 @@ type Sala = {
   horaSalida?: string | Date;
 };
 
+type SalaVM = Sala & {
+  isFree: boolean;
+  timeToFreeText: string | null;
+};
+
 @Component({
   selector: 'app-user-area',
   standalone: true,
@@ -24,52 +37,86 @@ type Sala = {
   styleUrls: ['./user-area.css'],
 })
 export class UserAreaComponent {
-  // Admin
   isAdmin = false;
 
-  // Users (lo mantengo porque ya lo tenías)
-  users$: Observable<any[]>;
+  // Nombre usuario (solo nombre real)
+  userName$: Observable<string>;
 
   // Salas
   private readonly salasApiUrl = 'http://100.80.240.31:3000/salas';
   salasRaw$: Observable<Sala[]>;
   faculties$: Observable<string[]>;
-  salasFiltered$: Observable<Sala[]>;
+  salasFiltered$: Observable<SalaVM[]>;
 
   // Search UI
   search = '';
   private search$ = new BehaviorSubject<string>('');
 
-  constructor(
-    private auth: AuthService,
-    private http: HttpClient
-  ) {
+  constructor(private auth: AuthService, private http: HttpClient) {
     this.isAdmin = this.auth.isAdmin();
 
-    // Users (backend users)
-    this.users$ = this.http.get<any[]>('http://100.80.240.31:3001/users');
+    // Nombre del usuario desde backend users con sub del JWT
+    const jwtUser = this.auth.getUser();
+    const userId = (jwtUser as any)?.sub as string;
 
-    // Salas (backend salas)
-    this.salasRaw$ = this.http.get<Sala[]>(this.salasApiUrl).pipe(
+    this.userName$ = this.http.get<any>(`http://100.80.240.31:3001/users/${userId}`).pipe(
+      map((u) => `${u.firstName} ${u.lastName}`.trim()),
       shareReplay(1)
     );
 
-    // Lista única de “bibliotecas” (facultades)
+    // Salas
+    this.salasRaw$ = this.http.get<Sala[]>(this.salasApiUrl).pipe(shareReplay(1));
+
+    // Facultades únicas (chips)
     this.faculties$ = this.salasRaw$.pipe(
-      map((salas) => Array.from(new Set(salas.map(s => (s.facultad || '').trim()))).filter(Boolean).sort()),
+      map((salas) =>
+        Array.from(new Set(salas.map((s) => (s.facultad || '').trim())))
+          .filter(Boolean)
+          .sort()
+      ),
       shareReplay(1)
     );
 
-    // Filtrado por búsqueda (facultad o nº sala)
-    this.salasFiltered$ = combineLatest([this.salasRaw$, this.search$]).pipe(
+    // Tick para cuenta atrás en tiempo real
+    const tick$ = interval(1000).pipe(startWith(0));
+
+    // Filtrado + viewmodel
+    this.salasFiltered$ = combineLatest([this.salasRaw$, this.search$, tick$]).pipe(
       map(([salas, term]) => {
         const t = (term || '').trim().toLowerCase();
-        if (!t) return salas;
 
-        return salas.filter((s) => {
-          const fac = (s.facultad || '').toLowerCase();
-          const num = String(s.numeroSala ?? '').toLowerCase();
-          return fac.includes(t) || num.includes(t);
+        const filtered = !t
+          ? salas
+          : salas.filter((s) => {
+              const fac = (s.facultad || '').toLowerCase();
+              const num = String(s.numeroSala ?? '').toLowerCase();
+              return fac.includes(t) || num.includes(t);
+            });
+
+        const now = Date.now();
+
+        return filtered.map((s) => {
+          const isFree = (s.personasDentro ?? 0) === 0;
+
+          let timeToFreeText: string | null = null;
+          if (!isFree && s.horaSalida) {
+            const end = new Date(s.horaSalida as any).getTime();
+            const diff = end - now;
+
+            if (Number.isFinite(diff) && diff > 0) {
+              const totalSeconds = Math.floor(diff / 1000);
+              const hours = Math.floor(totalSeconds / 3600);
+              const minutes = Math.floor((totalSeconds % 3600) / 60);
+              const seconds = totalSeconds % 60;
+
+              timeToFreeText =
+                hours > 0 ? `${hours}h ${minutes}m ${seconds}s` : `${minutes}m ${seconds}s`;
+            } else {
+              timeToFreeText = 'Soon';
+            }
+          }
+
+          return { ...s, isFree, timeToFreeText } as SalaVM;
         });
       })
     );
@@ -81,5 +128,9 @@ export class UserAreaComponent {
 
   goToAdminPanel() {
     window.location.href = 'http://100.80.240.31:4200/admin-salas';
+  }
+
+  logout() {
+    this.auth.logout();
   }
 }

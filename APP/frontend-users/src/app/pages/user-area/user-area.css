@@ -7,6 +7,7 @@
   padding: 28px 20px;
 }
 
+/* One elegant panel */
 .card{
   background: rgba(255,255,255,0.82);
   border: 1px solid rgba(15, 23, 42, 0.10);
@@ -15,17 +16,21 @@
   box-shadow: 0 14px 40px rgba(15, 23, 42, 0.08);
 }
 
-/* Top */
-.user-area__top{
-  padding: 18px 18px;
+.ua-panel{
+  padding: 18px;
 }
 
-.user-area__topInner{
+.ua-panelHeader{
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
   gap: 14px;
+
+  padding-bottom: 14px;
+  border-bottom: 1px solid rgba(15, 23, 42, 0.08);
 }
+
+.ua-headText{ min-width: 0; }
 
 .ua-title{
   margin: 0 0 6px;
@@ -35,13 +40,24 @@
   color: #0f172a;
 }
 
+.ua-name{
+  color: rgba(30,58,138,0.95);
+}
+
 .ua-subtitle{
   margin: 0;
   font-size: 14px;
   color: rgba(15, 23, 42, 0.62);
 }
 
-/* Buttons */
+/* Actions row */
+.ua-actions{
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* Admin button */
 .btn-primary{
   border: 1px solid rgba(47, 90, 224, 0.25);
   background: linear-gradient(180deg, rgba(47,90,224,0.95), rgba(30,58,138,0.95));
@@ -51,41 +67,57 @@
   font-weight: 700;
   cursor: pointer;
   transition: transform 120ms ease, box-shadow 120ms ease;
+  white-space: nowrap;
 }
 
 .btn-primary:hover{
   transform: translateY(-1px);
   box-shadow: 0 6px 18px rgba(15, 23, 42, 0.10);
 }
-
 .btn-primary:active{ transform: translateY(0); }
 
-/* Search */
-.ua-searchWrap{
-  display: grid;
-  place-items: center;
-  margin: 18px 0 22px;
+/* Logout ghost button */
+.btn-ghost{
+  border: 1px solid rgba(15, 23, 42, 0.12);
+  background: rgba(255,255,255,0.85);
+  color: rgba(15, 23, 42, 0.85);
+  border-radius: 999px;
+  padding: 10px 14px;
+  font-weight: 800;
+  cursor: pointer;
+  transition: transform 120ms ease, box-shadow 120ms ease;
+  white-space: nowrap;
 }
 
-.ua-search{
-  width: min(820px, 100%);
-  padding: 14px 14px;
+.btn-ghost:hover{
+  transform: translateY(-1px);
+  box-shadow: 0 6px 18px rgba(15, 23, 42, 0.06);
 }
 
-.ua-searchInner{
-  display: grid;
-  gap: 12px;
+.btn-ghost:active{ transform: translateY(0); }
+
+/* Search block inside same panel */
+.ua-searchBlock{
+  padding: 14px 0 16px;
+  border-bottom: 1px solid rgba(15, 23, 42, 0.08);
+}
+
+.ua-searchRow{
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }
 
 .ua-searchIcon{
-  width: 32px;
-  height: 32px;
+  width: 34px;
+  height: 34px;
   border-radius: 999px;
   display: grid;
   place-items: center;
   background: rgba(30,58,138,0.08);
   color: rgba(30,58,138,0.95);
   font-weight: 900;
+  flex: 0 0 auto;
 }
 
 .ua-searchInput{
@@ -105,6 +137,7 @@
 }
 
 .ua-chipRow{
+  margin-top: 12px;
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
@@ -126,16 +159,12 @@
   box-shadow: 0 6px 18px rgba(15, 23, 42, 0.06);
 }
 
-/* Sections */
-.ua-section{
-  margin-top: 18px;
-}
-
-.ua-sectionHeader{
+/* Rooms header inside panel */
+.ua-roomsHeader{
   display: flex;
   align-items: baseline;
   justify-content: space-between;
-  margin: 0 2px 10px;
+  padding: 16px 0 10px;
 }
 
 .ua-h2{
@@ -157,18 +186,25 @@
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 12px;
+  padding-bottom: 4px;
 }
 
 @media (max-width: 980px){
   .ua-grid{ grid-template-columns: repeat(2, 1fr); }
 }
+
 @media (max-width: 640px){
   .ua-grid{ grid-template-columns: 1fr; }
-  .user-area__topInner{ flex-direction: column; align-items: stretch; }
+  .ua-panelHeader{ flex-direction: column; align-items: stretch; }
+  .ua-actions{ justify-content: flex-start; }
 }
 
+/* Individual room card */
 .ua-room{
-  padding: 16px;
+  border-radius: 16px;
+  border: 1px solid rgba(15, 23, 42, 0.10);
+  background: rgba(255,255,255,0.70);
+  padding: 14px;
 }
 
 .ua-roomTop{
@@ -176,11 +212,11 @@
   align-items: flex-start;
   justify-content: space-between;
   gap: 12px;
-  margin-bottom: 12px;
+  margin-bottom: 10px;
 }
 
 .ua-roomTitle{
-  font-size: 16px;
+  font-size: 15px;
   font-weight: 900;
   color: #0f172a;
 }
@@ -198,16 +234,52 @@
   padding: 6px 10px;
   border-radius: 999px;
   font-size: 12px;
-  font-weight: 800;
-  border: 1px solid rgba(47, 90, 224, 0.22);
-  background: rgba(47, 90, 224, 0.08);
-  color: rgba(30,58,138,0.95);
+  font-weight: 900;
+  border: 1px solid rgba(15, 23, 42, 0.10);
+  background: rgba(255,255,255,0.8);
+  color: #0f172a;
   white-space: nowrap;
+}
+
+.ua-badge--free{
+  border-color: rgba(22, 163, 74, 0.25);
+  background: rgba(22, 163, 74, 0.10);
+  color: rgb(21, 128, 61);
+}
+
+.ua-badge--busy{
+  border-color: rgba(220, 38, 38, 0.25);
+  background: rgba(220, 38, 38, 0.10);
+  color: rgb(185, 28, 28);
+}
+
+.ua-countdown{
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 14px;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  background: rgba(255,255,255,0.65);
+  margin-bottom: 12px;
+}
+
+.ua-countdownLabel{
+  font-size: 12px;
+  color: rgba(15, 23, 42, 0.60);
+  font-weight: 800;
+}
+
+.ua-countdownValue{
+  font-size: 13px;
+  font-weight: 900;
+  color: #0f172a;
 }
 
 .ua-roomStats{
   display: grid;
-  grid-template-columns: 1fr 1fr 1fr;
+  grid-template-columns: 1fr 1fr;
   gap: 10px;
   border-top: 1px solid rgba(15, 23, 42, 0.08);
   padding-top: 12px;
@@ -228,32 +300,11 @@
   color: #0f172a;
 }
 
-/* Empty */
 .ua-empty{
+  border-radius: 16px;
+  border: 1px solid rgba(15, 23, 42, 0.10);
+  background: rgba(255,255,255,0.70);
   padding: 16px;
   color: rgba(15, 23, 42, 0.62);
   font-weight: 700;
 }
-
-/* Users (si lo mantienes) */
-.ua-users{ padding: 8px; }
-
-.ua-userList{
-  list-style: none;
-  margin: 0;
-  padding: 0;
-}
-
-.ua-userItem{
-  display: grid;
-  grid-template-columns: 1.3fr 1.6fr 0.6fr;
-  gap: 10px;
-  padding: 12px 10px;
-  border-bottom: 1px solid rgba(15, 23, 42, 0.08);
-}
-
-.ua-userItem:last-child{ border-bottom: none; }
-
-.ua-userName{ font-weight: 800; color: #0f172a; }
-.ua-userEmail{ color: rgba(15, 23, 42, 0.62); font-weight: 700; }
-.ua-userType{ font-weight: 900; color: rgba(30,58,138,0.95); text-transform: uppercase; font-size: 12px; }
