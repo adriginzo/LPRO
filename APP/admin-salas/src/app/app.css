@@ -1,0 +1,117 @@
+/* src/app/app.css */
+:host { display: block; }
+
+/* HEADER igual al de la app global */
+.app-header{
+  position: sticky;
+  top: 0;
+  z-index: 1000;
+  backdrop-filter: blur(12px);
+  background: rgba(255,255,255,0.8);
+  border-bottom: 1px solid rgba(15, 23, 42, 0.08);
+}
+
+.app-header__inner{
+  max-width: 1200px;
+  margin: 0 auto;
+  height: 80px;
+  padding: 0 20px;
+
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.app-title{
+  margin: 0;
+  font-size: 20px;
+  font-weight: 800;
+  color: #1e3a8a;
+  letter-spacing: -0.02em;
+}
+
+.app-logo{
+  height: 56px;
+  width: auto;
+  display: block;
+  object-fit: contain;
+}
+
+.app-main{
+  min-height: calc(100vh - 80px);
+  background: #f6f7fb; /* fondo gris bajo el banner */
+}
+
+/* PANEL */
+.card{
+  background: rgba(255,255,255,0.82);
+  border: 1px solid rgba(15, 23, 42, 0.10);
+  border-radius: 18px;
+  backdrop-filter: blur(14px);
+  box-shadow: 0 14px 40px rgba(15, 23, 42, 0.08);
+}
+
+.admin-page{
+  padding: 28px 20px;
+}
+
+.admin-panel{
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 18px;
+}
+
+.admin-header{
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid rgba(15, 23, 42, 0.08);
+}
+
+.admin-title{
+  margin: 0 0 6px;
+  font-size: 28px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: #0f172a;
+}
+
+.admin-subtitle{
+  margin: 0;
+  font-size: 14px;
+  color: rgba(15, 23, 42, 0.62);
+}
+
+.admin-tabs{
+  display: inline-flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.tab{
+  border: 1px solid rgba(15, 23, 42, 0.12);
+  background: rgba(255,255,255,0.85);
+  color: rgba(15, 23, 42, 0.85);
+  border-radius: 999px;
+  padding: 10px 14px;
+  font-weight: 900;
+  cursor: pointer;
+  transition: transform 120ms ease, box-shadow 120ms ease;
+}
+
+.tab:hover{
+  transform: translateY(-1px);
+  box-shadow: 0 6px 18px rgba(15, 23, 42, 0.06);
+}
+
+.tab--active{
+  border-color: rgba(47, 90, 224, 0.25);
+  background: linear-gradient(180deg, rgba(47,90,224,0.95), rgba(30,58,138,0.95));
+  color: #fff;
+}
+
+.admin-content{
+  padding-top: 16px;
+}

@@ -1,2 +1,71 @@
-<!-- app.component.html -->
-<router-outlet></router-outlet>
+<header class="app-header">
+  <div class="app-header__inner">
+    <h1 class="app-title">Bookit Admin</h1>
+    <img class="app-logo" src="logo.png" alt="Bookit logo" />
+  </div>
+</header>
+
+<main class="app-main">
+  <!-- Loading while verifying -->
+  <div class="admin-page" *ngIf="isChecking()">
+    <div class="admin-panel card" style="max-width: 780px;">
+      <div class="admin-header" style="border-bottom: 0; padding-bottom: 0;">
+        <div>
+          <h1 class="admin-title">Checking permissions…</h1>
+          <p class="admin-subtitle">Please wait.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Not allowed -->
+  <div class="admin-page" *ngIf="!isChecking() && !isAllowed(); else adminContent">
+    <div class="admin-panel card" style="max-width: 780px;">
+      <div class="admin-header" style="border-bottom: 0; padding-bottom: 0;">
+        <div>
+          <h1 class="admin-title">You don’t have permissions</h1>
+          <p class="admin-subtitle">
+            This area is restricted to administrators only.
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Allowed -->
+  <ng-template #adminContent>
+    <div class="admin-page">
+      <div class="admin-panel card">
+        <div class="admin-header">
+          <div>
+            <h1 class="admin-title">Admin dashboard</h1>
+            <p class="admin-subtitle">Manage rooms and users in one place.</p>
+          </div>
+
+          <div class="admin-tabs">
+            <button
+              class="tab"
+              [class.tab--active]="activeTab() === 'salas'"
+              type="button"
+              (click)="setTab('salas')">
+              Manage rooms
+            </button>
+
+            <button
+              class="tab"
+              [class.tab--active]="activeTab() === 'usuarios'"
+              type="button"
+              (click)="setTab('usuarios')">
+              Manage users
+            </button>
+          </div>
+        </div>
+
+        <div class="admin-content">
+          <app-admin-salas *ngIf="activeTab() === 'salas'"></app-admin-salas>
+          <app-admin-users *ngIf="activeTab() === 'usuarios'"></app-admin-users>
+        </div>
+      </div>
+    </div>
+  </ng-template>
+</main>

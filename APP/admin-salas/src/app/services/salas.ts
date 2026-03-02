@@ -4,6 +4,10 @@ import { Observable } from 'rxjs';
 
 export interface Sala {
   _id?: string;
+
+  // ✅ NUEVO: requerido en backend
+  facultad: string;
+
   numeroSala: number;
   personasDentro: number;
   ruidoDb: number;
@@ -13,7 +17,7 @@ export interface Sala {
 
 @Injectable({ providedIn: 'root' })
 export class SalasService {
-  private apiUrl = 'http://100.80.240.31:3000/salas'; // <- actualizado a NestJS
+  private apiUrl = 'http://100.80.240.31:3000/salas';
 
   constructor(private http: HttpClient) {}
 

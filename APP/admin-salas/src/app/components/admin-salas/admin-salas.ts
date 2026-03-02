@@ -1,4 +1,4 @@
-import { Component, signal } from '@angular/core';
+import { Component, signal, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { HttpClientModule } from '@angular/common/http';
@@ -13,12 +13,23 @@ import { SalasService, Sala } from '../../services/salas';
 })
 export class AdminSalasComponent {
   salas = signal<Sala[]>([]);
-  nuevaSala: Sala = { 
-    numeroSala: 0, 
-    personasDentro: 0, 
-    ruidoDb: 0, 
-    horaEntrada: this.fechaLocal(new Date()), 
-    horaSalida: this.fechaLocal(new Date()) 
+  searchFaculty = signal<string>(''); // ✅ buscador por facultad
+
+  // ✅ lista filtrada
+  filteredSalas = computed(() => {
+    const term = this.searchFaculty().trim().toLowerCase();
+    const all = this.salas();
+    if (!term) return all;
+    return all.filter(s => (s.facultad || '').toLowerCase().includes(term));
+  });
+
+  nuevaSala: Sala = {
+    facultad: '',
+    numeroSala: 0,
+    personasDentro: 0,
+    ruidoDb: 0,
+    horaEntrada: this.fechaLocal(new Date()),
+    horaSalida: this.fechaLocal(new Date())
   };
 
   constructor(private salasService: SalasService) {
@@ -45,15 +56,18 @@ export class AdminSalasComponent {
   crearSala() {
     const salaParaEnviar: Sala = {
       ...this.nuevaSala,
+      facultad: (this.nuevaSala.facultad || '').trim(),
       horaEntrada: new Date(this.nuevaSala.horaEntrada),
       horaSalida: this.nuevaSala.horaSalida ? new Date(this.nuevaSala.horaSalida) : undefined
     };
+
     this.salasService.createSala(salaParaEnviar).subscribe(() => {
-      this.nuevaSala = { 
-        numeroSala: 0, 
-        personasDentro: 0, 
-        ruidoDb: 0, 
-        horaEntrada: this.fechaLocal(new Date()), 
+      this.nuevaSala = {
+        facultad: '',
+        numeroSala: 0,
+        personasDentro: 0,
+        ruidoDb: 0,
+        horaEntrada: this.fechaLocal(new Date()),
         horaSalida: this.fechaLocal(new Date())
       };
       this.cargarSalas();
@@ -62,17 +76,15 @@ export class AdminSalasComponent {
 
   actualizarSala(sala: Sala) {
     if (!sala._id) return;
+
     const salaParaEnviar: Sala = {
       ...sala,
+      facultad: (sala.facultad || '').trim(),
       horaEntrada: new Date(sala.horaEntrada),
       horaSalida: sala.horaSalida ? new Date(sala.horaSalida) : undefined
     };
-    this.salasService.updateSala(sala._id, salaParaEnviar).subscribe(() => this.cargarSalas());
-  }
 
-  actualizarPersonas(sala: Sala) {
-    if (!sala._id) return;
-    this.salasService.updatePersonas(sala._id, sala.personasDentro).subscribe(() => this.cargarSalas());
+    this.salasService.updateSala(sala._id, salaParaEnviar).subscribe(() => this.cargarSalas());
   }
 
   eliminarSala(id: string) {
@@ -80,7 +92,7 @@ export class AdminSalasComponent {
   }
 
   borrarTodasLasSalas() {
-    if (!confirm('¿Estás seguro de borrar todas las salas?')) return;
+    if (!confirm('Are you sure you want to delete all rooms?')) return;
     this.salasService.deleteAllSalas().subscribe(() => this.cargarSalas());
   }
 }

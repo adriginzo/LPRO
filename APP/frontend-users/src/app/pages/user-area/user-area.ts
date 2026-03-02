@@ -39,23 +39,19 @@ type SalaVM = Sala & {
 export class UserAreaComponent {
   isAdmin = false;
 
-  // Nombre usuario (solo nombre real)
   userName$: Observable<string>;
 
-  // Salas
   private readonly salasApiUrl = 'http://100.80.240.31:3000/salas';
   salasRaw$: Observable<Sala[]>;
   faculties$: Observable<string[]>;
   salasFiltered$: Observable<SalaVM[]>;
 
-  // Search UI
   search = '';
   private search$ = new BehaviorSubject<string>('');
 
   constructor(private auth: AuthService, private http: HttpClient) {
     this.isAdmin = this.auth.isAdmin();
 
-    // Nombre del usuario desde backend users con sub del JWT
     const jwtUser = this.auth.getUser();
     const userId = (jwtUser as any)?.sub as string;
 
@@ -64,10 +60,8 @@ export class UserAreaComponent {
       shareReplay(1)
     );
 
-    // Salas
     this.salasRaw$ = this.http.get<Sala[]>(this.salasApiUrl).pipe(shareReplay(1));
 
-    // Facultades únicas (chips)
     this.faculties$ = this.salasRaw$.pipe(
       map((salas) =>
         Array.from(new Set(salas.map((s) => (s.facultad || '').trim())))
@@ -77,14 +71,11 @@ export class UserAreaComponent {
       shareReplay(1)
     );
 
-    // Tick para cuenta atrás en tiempo real
     const tick$ = interval(1000).pipe(startWith(0));
 
-    // Filtrado + viewmodel
     this.salasFiltered$ = combineLatest([this.salasRaw$, this.search$, tick$]).pipe(
       map(([salas, term]) => {
         const t = (term || '').trim().toLowerCase();
-
         const filtered = !t
           ? salas
           : salas.filter((s) => {
@@ -127,7 +118,13 @@ export class UserAreaComponent {
   }
 
   goToAdminPanel() {
-    window.location.href = 'http://100.80.240.31:4200/admin-salas';
+    const token = this.auth.getToken();
+    // ✅ si no hay token, no navegamos
+    if (!token) return;
+
+    // ✅ pasamos el token en la URL y el admin lo guardará
+    const adminUrl = `http://100.80.240.31:4200/admin-salas?token=${encodeURIComponent(token)}`;
+    window.location.href = adminUrl;
   }
 
   logout() {

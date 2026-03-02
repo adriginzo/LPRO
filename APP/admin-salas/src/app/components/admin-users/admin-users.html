@@ -1,0 +1,143 @@
+<section class="section">
+  <div class="section-header">
+    <h2 class="h2">Manage users</h2>
+
+    <div class="actions">
+      <button class="btn btn-ghost" (click)="loadUsers()">Refresh</button>
+    </div>
+  </div>
+
+  <!-- ✅ Search -->
+  <div class="searchbar">
+    <div class="searchicon" aria-hidden="true">⌕</div>
+    <input
+      class="searchinput"
+      type="text"
+      placeholder="Search by name, email, DNI…"
+      [ngModel]="searchUser()"
+      (ngModelChange)="searchUser.set($event)"
+    />
+    <button
+      class="btn btn-ghost"
+      type="button"
+      *ngIf="searchUser().trim().length"
+      (click)="searchUser.set('')">
+      Clear
+    </button>
+  </div>
+
+  <!-- Create user -->
+  <div class="card inner-card">
+    <h3 class="h3">Create a new user</h3>
+
+    <div class="grid">
+      <div class="field">
+        <label class="label">First name</label>
+        <input class="input" [(ngModel)]="newUser.firstName" placeholder="First name" />
+      </div>
+
+      <div class="field">
+        <label class="label">Last name</label>
+        <input class="input" [(ngModel)]="newUser.lastName" placeholder="Last name" />
+      </div>
+
+      <div class="field">
+        <label class="label">Email</label>
+        <input class="input" type="email" [(ngModel)]="newUser.email" placeholder="email@domain.com" />
+      </div>
+
+      <div class="field">
+        <label class="label">DNI</label>
+        <input class="input" [(ngModel)]="newUser.dni" placeholder="12345678X" />
+      </div>
+
+      <div class="field">
+        <label class="label">School</label>
+        <input class="input" [(ngModel)]="newUser.school" placeholder="School" />
+      </div>
+
+      <div class="field">
+        <label class="label">Degree</label>
+        <input class="input" [(ngModel)]="newUser.degree" placeholder="Degree" />
+      </div>
+
+      <div class="field">
+        <label class="label">Phone</label>
+        <input class="input" [(ngModel)]="newUser.phone" placeholder="+34..." />
+      </div>
+
+      <div class="field">
+        <label class="label">Type</label>
+        <select class="input" [(ngModel)]="newUser.type">
+          <option value="user">user</option>
+          <option value="admin">admin</option>
+        </select>
+      </div>
+
+      <div class="field">
+        <label class="label">Password</label>
+        <input class="input" type="password" [(ngModel)]="newUser.password" placeholder="••••••••" />
+      </div>
+    </div>
+
+    <div class="row">
+      <button class="btn btn-primary" (click)="createUser()">Create user</button>
+    </div>
+  </div>
+
+  <!-- Users list -->
+  <div class="card inner-card">
+    <div class="table-header">
+      <h3 class="h3">Existing users</h3>
+      <span class="muted">{{ filteredUsers().length }} users</span>
+    </div>
+
+    <div class="table-wrap">
+      <table class="table">
+        <thead>
+          <tr>
+            <th>First name</th>
+            <th>Last name</th>
+            <th>Email</th>
+            <th>DNI</th>
+            <th>School</th>
+            <th>Degree</th>
+            <th>Phone</th>
+            <th>Type</th>
+            <th>Password</th>
+            <th style="width: 170px;">Actions</th>
+          </tr>
+        </thead>
+
+        <tbody>
+          <tr *ngFor="let u of filteredUsers()">
+            <td><input class="cell-input" [(ngModel)]="u.firstName"></td>
+            <td><input class="cell-input" [(ngModel)]="u.lastName"></td>
+            <td><input class="cell-input" type="email" [(ngModel)]="u.email"></td>
+            <td><input class="cell-input" [(ngModel)]="u.dni"></td>
+            <td><input class="cell-input" [(ngModel)]="u.school"></td>
+            <td><input class="cell-input" [(ngModel)]="u.degree"></td>
+            <td><input class="cell-input" [(ngModel)]="u.phone"></td>
+            <td>
+              <select class="cell-input" [(ngModel)]="u.type">
+                <option value="user">user</option>
+                <option value="admin">admin</option>
+              </select>
+            </td>
+            <td>
+              <input class="cell-input" type="password" [(ngModel)]="u.password" placeholder="(leave empty)" />
+            </td>
+            <td class="cell-actions">
+              <button class="btn btn-save" (click)="saveUser(u)">Save</button>
+              <button class="btn btn-danger" (click)="deleteUser(u._id!)">Delete</button>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <p class="note">
+      Note: if you leave the password empty when saving, it won’t be changed.
+    </p>
+  </div>
+</section>
