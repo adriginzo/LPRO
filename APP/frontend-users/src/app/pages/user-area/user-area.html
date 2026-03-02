@@ -1,24 +1,125 @@
-<div class="user-area-container card">
-  <h1>User Area</h1>
+<!-- src/app/pages/user-area/user-area.html -->
+<div class="user-area">
+  <div class="user-area__top card">
+    <div class="user-area__topInner">
+      <div>
+        <h1 class="ua-title">User Area</h1>
+        <p class="ua-subtitle">Search available libraries (faculties) and view study rooms.</p>
+      </div>
 
-  <button
-    class="btn-primary"
-    *ngIf="isAdmin"
-    (click)="goToAdminPanel()">
-    Go to Admin Panel
-  </button>
-
-  <div *ngIf="users$ | async as users; else noUsers">
-    <ul>
-      <li *ngFor="let user of users">
-        <span class="user-name">{{ user.firstName }} {{ user.lastName }}</span>
-        <span class="user-email">{{ user.email }}</span>
-        <span class="user-type">{{ user.type }}</span>
-      </li>
-    </ul>
+      <button
+        class="btn-primary"
+        *ngIf="isAdmin"
+        (click)="goToAdminPanel()">
+        Go to Admin Panel
+      </button>
+    </div>
   </div>
 
-  <ng-template #noUsers>
-    <p>No users found.</p>
-  </ng-template>
+  <!-- SEARCH BAR (centrado) -->
+  <div class="ua-searchWrap">
+    <div class="ua-search card">
+      <div class="ua-searchInner">
+        <div class="ua-searchIcon" aria-hidden="true">⌕</div>
+
+        <input
+          class="ua-searchInput"
+          [(ngModel)]="search"
+          (ngModelChange)="onSearchChange($event)"
+          placeholder="Search by faculty (library) or room number…"
+          autocomplete="off"
+        />
+
+        <div class="ua-chipRow" *ngIf="faculties$ | async as faculties">
+          <button
+            class="ua-chip"
+            type="button"
+            (click)="search=''; onSearchChange('')">
+            All
+          </button>
+
+          <button
+            class="ua-chip"
+            type="button"
+            *ngFor="let f of faculties"
+            (click)="search=f; onSearchChange(f)">
+            {{ f }}
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- LISTADO SALAS -->
+  <div class="ua-section">
+    <div class="ua-sectionHeader">
+      <h2 class="ua-h2">Study Rooms</h2>
+      <span class="ua-count" *ngIf="salasFiltered$ | async as salas">
+        {{ salas.length }} rooms
+      </span>
+    </div>
+
+    <div class="ua-grid" *ngIf="salasFiltered$ | async as salas; else loading">
+      <div class="ua-room card" *ngFor="let s of salas">
+        <div class="ua-roomTop">
+          <div>
+            <div class="ua-roomTitle">{{ s.facultad }}</div>
+            <div class="ua-roomMeta">Room {{ s.numeroSala }}</div>
+          </div>
+
+          <span class="ua-badge">
+            {{ s.personasDentro }} inside
+          </span>
+        </div>
+
+        <div class="ua-roomStats">
+          <div class="ua-stat">
+            <div class="ua-statLabel">Noise</div>
+            <div class="ua-statValue">{{ s.ruidoDb }} dB</div>
+          </div>
+
+          <div class="ua-stat">
+            <div class="ua-statLabel">Entry</div>
+            <div class="ua-statValue">{{ s.horaEntrada | date:'short' }}</div>
+          </div>
+
+          <div class="ua-stat">
+            <div class="ua-statLabel">Exit</div>
+            <div class="ua-statValue">
+              {{ s.horaSalida ? (s.horaSalida | date:'short') : '—' }}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="ua-empty card" *ngIf="salas.length === 0">
+        No rooms match your search.
+      </div>
+    </div>
+
+    <ng-template #loading>
+      <div class="ua-empty card">Loading rooms…</div>
+    </ng-template>
+  </div>
+
+  <!-- (Opcional) tu listado de usuarios, por si lo quieres mantener -->
+  <div class="ua-section">
+    <div class="ua-sectionHeader">
+      <h2 class="ua-h2">Users</h2>
+    </div>
+
+    <div class="card ua-users" *ngIf="users$ | async as users; else noUsers">
+      <ul class="ua-userList">
+        <li class="ua-userItem" *ngFor="let user of users">
+          <div class="ua-userName">{{ user.firstName }} {{ user.lastName }}</div>
+          <div class="ua-userEmail">{{ user.email }}</div>
+          <div class="ua-userType">{{ user.type }}</div>
+        </li>
+      </ul>
+    </div>
+
+    <ng-template #noUsers>
+      <div class="ua-empty card">No users found.</div>
+    </ng-template>
+  </div>
 </div>

@@ -5,6 +5,10 @@ export type SalaDocument = Sala & Document;
 
 @Schema()
 export class Sala {
+
+  @Prop({ required: true })
+  facultad: String;
+
   @Prop({ required: true })
   numeroSala: number;
 
