@@ -471,3 +471,66 @@
     width: 100%;
   }
 }
+
+.ua-myReservations {
+  margin-bottom: 30px;
+}
+
+.ua-sectionHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.ua-myReservationsList {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 16px;
+}
+
+.ua-myReservationCard {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 22px;
+  border-radius: 24px;
+  background: rgba(255, 255, 255, 0.9);
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  box-shadow:
+    0 10px 24px rgba(15, 23, 42, 0.06),
+    0 2px 6px rgba(15, 23, 42, 0.03);
+}
+
+.ua-myReservationTop {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.ua-myReservationActions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.ua-empty--small {
+  padding: 22px 18px;
+}
+
+.ua-inlineReservation {
+  display: grid;
+  gap: 8px;
+}
+
+.ua-inlineReservationText {
+  font-size: 0.98rem;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.ua-inlineReservationSubtext {
+  font-size: 0.9rem;
+  color: #64748b;
+}

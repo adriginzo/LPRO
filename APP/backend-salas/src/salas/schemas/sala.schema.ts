@@ -25,6 +25,9 @@ export class Sala {
 
   @Prop()
   ultimoReservadoPor: string;
+
+  @Prop()
+  ultimoReservadoPorId: string;
 }
 
 export const SalaSchema = SchemaFactory.createForClass(Sala);

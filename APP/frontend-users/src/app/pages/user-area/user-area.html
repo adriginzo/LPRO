@@ -23,6 +23,43 @@
       </div>
     </div>
 
+    <!-- MIS RESERVAS -->
+    <div class="ua-myReservations" *ngIf="myReservations$ | async as myReservations">
+      <div class="ua-sectionHeader">
+        <h2 class="ua-h2">My Reservations</h2>
+        <span class="ua-count">{{ myReservations.length }} reservations</span>
+      </div>
+
+      <div class="ua-myReservationsList" *ngIf="myReservations.length > 0; else noReservations">
+        <div class="ua-myReservationCard" *ngFor="let r of myReservations">
+          <div class="ua-myReservationTop">
+            <div>
+              <div class="ua-roomTitle">{{ r.facultad }}</div>
+              <div class="ua-roomMeta">Room {{ r.numeroSala }}</div>
+            </div>
+
+            <span class="ua-badge ua-badge--busy">Reserved</span>
+          </div>
+
+          <div class="ua-countdown">
+            <span class="ua-countdownLabel">Available in</span>
+            <span class="ua-countdownValue">{{ r.timeToFreeText ? r.timeToFreeText : '—' }}</span>
+          </div>
+
+          <div class="ua-myReservationActions">
+            <button class="btn-primary" type="button" (click)="openEditReservationForm(r)">
+              Modify reservation
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <ng-template #noReservations>
+        <div class="ua-empty ua-empty--small">You do not have active reservations.</div>
+      </ng-template>
+    </div>
+
+    <!-- BUSCADOR -->
     <div class="ua-searchBlock">
       <div class="ua-searchRow">
         <div class="ua-searchIcon" aria-hidden="true">⌕</div>
@@ -52,6 +89,7 @@
       </div>
     </div>
 
+    <!-- SALAS -->
     <div class="ua-roomsHeader">
       <h2 class="ua-h2">Study Rooms</h2>
       <span class="ua-count" *ngIf="salasFiltered$ | async as salas">{{ salas.length }} rooms</span>
@@ -93,7 +131,7 @@
   </div>
 </div>
 
-<!-- MODAL DE RESERVA -->
+<!-- MODAL RESERVA -->
 <div class="ua-modalOverlay" *ngIf="reserveOpenForId" (click)="cancelReservation()">
   <div class="ua-modal" (click)="$event.stopPropagation()">
     <div class="ua-modalHeader">
@@ -145,6 +183,63 @@
       >
         {{ isSavingReservation ? 'Saving...' : 'Confirm reservation' }}
       </button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL MODIFICAR RESERVA -->
+<div class="ua-modalOverlay" *ngIf="editReservationOpenForId" (click)="cancelEditReservation()">
+  <div class="ua-modal" (click)="$event.stopPropagation()">
+    <div class="ua-modalHeader">
+      <div>
+        <h3 class="ua-modalTitle">Modify reservation</h3>
+        <p class="ua-modalSubtitle">Select a later exit time to extend your reservation.</p>
+      </div>
+
+      <button class="ua-closeBtn" type="button" (click)="cancelEditReservation()">×</button>
+    </div>
+
+    <div class="ua-modalBody" *ngIf="myReservations$ | async as myReservations">
+      <div class="field">
+        <label class="label" for="editReservationEnd">New exit time</label>
+        <input
+          class="input"
+          id="editReservationEnd"
+          type="datetime-local"
+          [(ngModel)]="editReservationEnd"
+        />
+      </div>
+
+      <div class="ua-inlineReservation" *ngFor="let r of myReservations">
+        <ng-container *ngIf="r._id === editReservationOpenForId">
+          <div class="ua-inlineReservationText">
+            {{ r.facultad }} · Room {{ r.numeroSala }}
+          </div>
+          <div class="ua-inlineReservationSubtext">
+            Current end: {{ r.horaSalida ? (r.horaSalida | date:'short') : '—' }}
+          </div>
+
+          <div class="ua-modalActions">
+            <button
+              class="btn-ghost"
+              type="button"
+              (click)="cancelEditReservation()"
+              [disabled]="isSavingReservationEdit"
+            >
+              Cancel
+            </button>
+
+            <button
+              class="btn-primary"
+              type="button"
+              (click)="saveReservationEdit(r)"
+              [disabled]="isSavingReservationEdit"
+            >
+              {{ isSavingReservationEdit ? 'Saving...' : 'Save changes' }}
+            </button>
+          </div>
+        </ng-container>
+      </div>
     </div>
   </div>
 </div>
