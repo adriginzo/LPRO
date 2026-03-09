@@ -59,17 +59,22 @@
           "defaultConfiguration": "production"
         },
         "serve": {
-          "builder": "@angular/build:dev-server",
-          "configurations": {
-            "production": {
-              "buildTarget": "frontend-users:build:production"
-            },
-            "development": {
-              "buildTarget": "frontend-users:build:development"
-            }
-          },
-          "defaultConfiguration": "development"
-        },
+  "builder": "@angular/build:dev-server",
+  "options": {
+    "host": "0.0.0.0",
+    "port": 4201,
+    "allowedHosts": ["100.80.240.31"]
+  },
+  "configurations": {
+    "production": {
+      "buildTarget": "frontend-users:build:production"
+    },
+    "development": {
+      "buildTarget": "frontend-users:build:development"
+    }
+  },
+  "defaultConfiguration": "development"
+},
         "test": {
           "builder": "@angular/build:unit-test"
         }

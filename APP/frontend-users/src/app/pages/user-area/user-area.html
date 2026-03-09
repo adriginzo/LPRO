@@ -1,7 +1,6 @@
 <!-- src/app/pages/user-area/user-area.html -->
 <div class="user-area">
   <div class="ua-panel card">
-    <!-- Header + actions -->
     <div class="ua-panelHeader">
       <div class="ua-headText">
         <h1 class="ua-title">
@@ -24,7 +23,6 @@
       </div>
     </div>
 
-    <!-- Search -->
     <div class="ua-searchBlock">
       <div class="ua-searchRow">
         <div class="ua-searchIcon" aria-hidden="true">⌕</div>
@@ -54,7 +52,6 @@
       </div>
     </div>
 
-    <!-- Rooms section -->
     <div class="ua-roomsHeader">
       <h2 class="ua-h2">Study Rooms</h2>
       <span class="ua-count" *ngIf="salasFiltered$ | async as salas">{{ salas.length }} rooms</span>
@@ -73,21 +70,15 @@
           </span>
         </div>
 
-        <div class="ua-countdown" *ngIf="!s.isFree">
-          <span class="ua-countdownLabel">Time until free</span>
+        <div *ngIf="!s.isFree" class="ua-countdown">
+          <span class="ua-countdownLabel">Available in</span>
           <span class="ua-countdownValue">{{ s.timeToFreeText ? s.timeToFreeText : '—' }}</span>
         </div>
 
-        <div class="ua-roomStats">
-          <div class="ua-stat">
-            <div class="ua-statLabel">Entry</div>
-            <div class="ua-statValue">{{ s.horaEntrada | date:'short' }}</div>
-          </div>
-
-          <div class="ua-stat">
-            <div class="ua-statLabel">Exit</div>
-            <div class="ua-statValue">{{ s.horaSalida ? (s.horaSalida | date:'short') : '—' }}</div>
-          </div>
+        <div *ngIf="s.isFree" class="ua-freeActions">
+          <button class="ua-reserveBtn" type="button" (click)="openReserveForm(s)">
+            Reserve
+          </button>
         </div>
       </div>
 
@@ -99,5 +90,61 @@
     <ng-template #loading>
       <div class="ua-empty">Loading rooms…</div>
     </ng-template>
+  </div>
+</div>
+
+<!-- MODAL DE RESERVA -->
+<div class="ua-modalOverlay" *ngIf="reserveOpenForId" (click)="cancelReservation()">
+  <div class="ua-modal" (click)="$event.stopPropagation()">
+    <div class="ua-modalHeader">
+      <div>
+        <h3 class="ua-modalTitle">Reserve study room</h3>
+        <p class="ua-modalSubtitle">Choose your entry and exit time.</p>
+      </div>
+
+      <button class="ua-closeBtn" type="button" (click)="cancelReservation()">×</button>
+    </div>
+
+    <div class="ua-modalBody">
+      <div class="field">
+        <label class="label" for="reservationStart">Entry time</label>
+        <input
+          class="input"
+          id="reservationStart"
+          type="datetime-local"
+          [(ngModel)]="reservationStart"
+        />
+      </div>
+
+      <div class="field">
+        <label class="label" for="reservationEnd">Exit time</label>
+        <input
+          class="input"
+          id="reservationEnd"
+          type="datetime-local"
+          [(ngModel)]="reservationEnd"
+        />
+      </div>
+    </div>
+
+    <div class="ua-modalActions">
+      <button
+        class="btn-ghost"
+        type="button"
+        (click)="cancelReservation()"
+        [disabled]="isSavingReservation"
+      >
+        Cancel
+      </button>
+
+      <button
+        class="btn-primary"
+        type="button"
+        (click)="confirmReservation({_id: reserveOpenForId, facultad: '', numeroSala: 0, personasDentro: 0, ruidoDb: 0, horaEntrada: '', isFree: true, timeToFreeText: null})"
+        [disabled]="isSavingReservation"
+      >
+        {{ isSavingReservation ? 'Saving...' : 'Confirm reservation' }}
+      </button>
+    </div>
   </div>
 </div>

@@ -5,7 +5,6 @@ export type SalaDocument = Sala & Document;
 
 @Schema()
 export class Sala {
-
   @Prop({ required: true })
   facultad: String;
 
@@ -23,6 +22,9 @@ export class Sala {
 
   @Prop()
   horaSalida: Date;
+
+  @Prop()
+  ultimoReservadoPor: string;
 }
 
 export const SalaSchema = SchemaFactory.createForClass(Sala);

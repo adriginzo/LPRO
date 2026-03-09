@@ -3,11 +3,11 @@
   "version": 1,
   "cli": {
     "packageManager": "npm",
-    "analytics": "fb9aeb3d-95ed-4a93-8321-f0b846eb03d2"
+    "analytics": "89859f31-83ba-4c98-b129-a4434babddd6"
   },
   "newProjectRoot": "projects",
   "projects": {
-    "admin-salas": {
+    "frontend-librarian": {
       "projectType": "application",
       "schematics": {},
       "root": "",
@@ -62,7 +62,7 @@
           "builder": "@angular/build:dev-server",
           "options": {
             "host": "0.0.0.0",
-            "port": 4200,
+            "port": 4202,
             "allowedHosts": [
               "100.80.240.31",
               "localhost",
@@ -71,10 +71,10 @@
           },
           "configurations": {
             "production": {
-              "buildTarget": "admin-salas:build:production"
+              "buildTarget": "frontend-librarian:build:production"
             },
             "development": {
-              "buildTarget": "admin-salas:build:development"
+              "buildTarget": "frontend-librarian:build:development"
             }
           },
           "defaultConfiguration": "development"

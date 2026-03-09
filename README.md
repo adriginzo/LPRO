@@ -1,5 +1,15 @@
 # LPRO
 ESTA CARPETA ES NUESTRO GIT DE LPRO
 
-adri puede commitear
-yo commiteo, tu commiteas, el commitea
+# ESTRUCTURA
+# =========================================================================================
+
+# BACKEND
+salas -> 3000
+users -> 3001
+
+# FRONTEND
+admin -> 4200
+user -> 4201
+librarian -> 4202
+# =========================================================================================

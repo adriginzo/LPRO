@@ -6,11 +6,13 @@ import { AuthService } from '../../services/auth';
 import {
   Observable,
   BehaviorSubject,
+  Subject,
   combineLatest,
   map,
   shareReplay,
   interval,
   startWith,
+  switchMap,
 } from 'rxjs';
 import { FormsModule } from '@angular/forms';
 
@@ -22,6 +24,7 @@ type Sala = {
   ruidoDb: number;
   horaEntrada: string | Date;
   horaSalida?: string | Date;
+  ultimoReservadoPor?: string;
 };
 
 type SalaVM = Sala & {
@@ -40,14 +43,23 @@ export class UserAreaComponent {
   isAdmin = false;
 
   userName$: Observable<string>;
+  currentUserFullName = '';
 
   private readonly salasApiUrl = 'http://100.80.240.31:3000/salas';
+
+  private refreshSalas$ = new Subject<void>();
+
   salasRaw$: Observable<Sala[]>;
   faculties$: Observable<string[]>;
   salasFiltered$: Observable<SalaVM[]>;
 
   search = '';
   private search$ = new BehaviorSubject<string>('');
+
+  reserveOpenForId: string | null = null;
+  reservationStart = '';
+  reservationEnd = '';
+  isSavingReservation = false;
 
   constructor(private auth: AuthService, private http: HttpClient) {
     this.isAdmin = this.auth.isAdmin();
@@ -60,7 +72,15 @@ export class UserAreaComponent {
       shareReplay(1)
     );
 
-    this.salasRaw$ = this.http.get<Sala[]>(this.salasApiUrl).pipe(shareReplay(1));
+    this.userName$.subscribe((name) => {
+      this.currentUserFullName = name;
+    });
+
+    this.salasRaw$ = this.refreshSalas$.pipe(
+      startWith(void 0),
+      switchMap(() => this.http.get<Sala[]>(this.salasApiUrl)),
+      shareReplay(1)
+    );
 
     this.faculties$ = this.salasRaw$.pipe(
       map((salas) =>
@@ -76,6 +96,7 @@ export class UserAreaComponent {
     this.salasFiltered$ = combineLatest([this.salasRaw$, this.search$, tick$]).pipe(
       map(([salas, term]) => {
         const t = (term || '').trim().toLowerCase();
+
         const filtered = !t
           ? salas
           : salas.filter((s) => {
@@ -117,12 +138,84 @@ export class UserAreaComponent {
     this.search$.next(value);
   }
 
+  openReserveForm(sala: SalaVM) {
+    this.reserveOpenForId = sala._id || null;
+
+    const now = new Date();
+    const oneHourLater = new Date(now.getTime() + 60 * 60 * 1000);
+
+    this.reservationStart = this.toDatetimeLocalValue(now);
+    this.reservationEnd = this.toDatetimeLocalValue(oneHourLater);
+  }
+
+  cancelReservation() {
+    this.reserveOpenForId = null;
+    this.reservationStart = '';
+    this.reservationEnd = '';
+  }
+
+  confirmReservation(sala: SalaVM) {
+    if (!sala._id) {
+      alert('Room id not found');
+      return;
+    }
+
+    if (!this.reservationStart || !this.reservationEnd) {
+      alert('Please select entry and exit times');
+      return;
+    }
+
+    const startDate = new Date(this.reservationStart);
+    const endDate = new Date(this.reservationEnd);
+
+    if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
+      alert('Invalid date');
+      return;
+    }
+
+    if (endDate <= startDate) {
+      alert('Exit time must be later than entry time');
+      return;
+    }
+
+    this.isSavingReservation = true;
+
+    const body = {
+      personasDentro: 1,
+      horaEntrada: startDate.toISOString(),
+      horaSalida: endDate.toISOString(),
+      ultimoReservadoPor: this.currentUserFullName || 'Usuario desconocido',
+    };
+
+    this.http.put(`${this.salasApiUrl}/${sala._id}`, body).subscribe({
+      next: () => {
+        this.isSavingReservation = false;
+        this.cancelReservation();
+        this.refreshSalas$.next();
+      },
+      error: () => {
+        this.isSavingReservation = false;
+        alert('The reservation could not be saved');
+      },
+    });
+  }
+
+  private toDatetimeLocalValue(date: Date): string {
+    const pad = (n: number) => String(n).padStart(2, '0');
+
+    const year = date.getFullYear();
+    const month = pad(date.getMonth() + 1);
+    const day = pad(date.getDate());
+    const hours = pad(date.getHours());
+    const minutes = pad(date.getMinutes());
+
+    return `${year}-${month}-${day}T${hours}:${minutes}`;
+  }
+
   goToAdminPanel() {
     const token = this.auth.getToken();
-    // ✅ si no hay token, no navegamos
     if (!token) return;
 
-    // ✅ pasamos el token en la URL y el admin lo guardará
     const adminUrl = `http://100.80.240.31:4200/admin-salas?token=${encodeURIComponent(token)}`;
     window.location.href = adminUrl;
   }

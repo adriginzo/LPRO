@@ -1,0 +1,94 @@
+<div class="monitor-page">
+  <section class="monitor-shell">
+    <section class="monitor-topbar">
+      <div>
+        <h2 class="monitor-title">Study Rooms</h2>
+        <p class="monitor-text">
+          Search libraries (faculties) and monitor study rooms in real time.
+        </p>
+      </div>
+
+      <div class="monitor-status" *ngIf="lastUpdate$ | async as lastUpdate">
+        Updated {{ lastUpdate | date:'HH:mm:ss' }}
+      </div>
+    </section>
+
+    <section class="alerts-block" *ngIf="alerts$ | async as alerts">
+      <div class="alerts-empty" *ngIf="alerts.length === 0">
+        No noise alerts right now.
+      </div>
+
+      <div class="alerts-list" *ngIf="alerts.length > 0">
+        <article class="alert-card" *ngFor="let alert of alerts; trackBy: trackByAlert">
+          <div class="alert-card__icon">!</div>
+
+          <div class="alert-card__content">
+            <div class="alert-card__title">Noise alert</div>
+            <div class="alert-card__text">
+              {{ alert.facultad }} · Room {{ alert.numeroSala }} is exceeding the allowed noise level.
+            </div>
+          </div>
+
+          <div class="alert-card__value">
+            {{ alert.ruidoDb }} dB
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <section class="rooms-grid" *ngIf="salas$ | async as salas; else loading">
+      <article class="room-card" *ngFor="let s of salas; trackBy: trackBySala">
+        <div class="room-card__top">
+          <div>
+            <h3 class="room-title">{{ s.facultad }}</h3>
+            <p class="room-meta">Room {{ s.numeroSala }}</p>
+          </div>
+
+          <span
+            class="room-badge"
+            [class.room-badge--free]="s.isFree"
+            [class.room-badge--busy]="!s.isFree"
+          >
+            {{ s.isFree ? 'Free' : 'Occupied' }}
+          </span>
+        </div>
+
+        <div *ngIf="s.isFree" class="room-freeState">
+          <span class="room-freeText">Room available</span>
+        </div>
+
+        <div *ngIf="!s.isFree" class="room-liveData">
+          <div class="room-stat">
+            <span class="room-stat__label">People inside</span>
+            <span class="room-stat__value">{{ s.personasDentro }}</span>
+          </div>
+
+          <div
+            class="room-stat room-stat--noise"
+            [class.room-stat--noise-good]="s.noiseLevel === 'good'"
+            [class.room-stat--noise-warning]="s.noiseLevel === 'warning'"
+            [class.room-stat--noise-danger]="s.noiseLevel === 'danger'"
+          >
+            <span class="room-stat__label">Noise level</span>
+            <span class="room-stat__value">{{ s.ruidoDb }} dB</span>
+          </div>
+
+          <div class="room-stat room-stat--full">
+            <span class="room-stat__label">Last reserved by</span>
+            <span class="room-stat__value">
+              {{ s.ultimoReservadoPor || 'Unknown' }}
+            </span>
+          </div>
+        </div>
+      </article>
+
+      <div class="empty-state" *ngIf="salas.length === 0">
+        No rooms available to display.
+      </div>
+    </section>
+  </section>
+
+  <ng-template #loading>
+    <div class="empty-state">Loading rooms…</div>
+  </ng-template>
+</div>
