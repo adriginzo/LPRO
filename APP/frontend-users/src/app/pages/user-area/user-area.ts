@@ -1,5 +1,5 @@
 // src/app/pages/user-area/user-area.ts
-import { Component, AfterViewInit, OnDestroy } from '@angular/core';
+import { Component, AfterViewInit, OnDestroy, NgZone, ChangeDetectorRef } from '@angular/core';
 import { CommonModule, DatePipe } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
 import { AuthService } from '../../services/auth';
@@ -93,7 +93,12 @@ export class UserAreaComponent implements AfterViewInit, OnDestroy {
 
   private readonly librariesStorageKey = 'bookit_libraries_map';
 
-  constructor(private auth: AuthService, private http: HttpClient) {
+  constructor(
+  private auth: AuthService,
+  private http: HttpClient,
+  private ngZone: NgZone,
+  private cdr: ChangeDetectorRef
+) {
     this.isAdmin = this.auth.isAdmin();
 
     const jwtUser = this.auth.getUser();
@@ -190,6 +195,8 @@ export class UserAreaComponent implements AfterViewInit, OnDestroy {
   ngOnDestroy(): void {
     if (this.map) {
       this.map.remove();
+      this.map = null;
+      this.markersLayer = null;
     }
   }
 
@@ -385,13 +392,16 @@ export class UserAreaComponent implements AfterViewInit, OnDestroy {
     if (mode === this.viewMode) return;
 
     if (mode === 'rooms') {
-      if (this.map) {
-        this.map.remove();
-        this.map = null;
-        this.markersLayer = null;
-      }
-
       this.viewMode = 'rooms';
+
+      setTimeout(() => {
+        if (this.map) {
+          this.map.remove();
+          this.map = null;
+          this.markersLayer = null;
+        }
+      }, 0);
+
       return;
     }
 
@@ -403,13 +413,15 @@ export class UserAreaComponent implements AfterViewInit, OnDestroy {
   }
 
   async openLibraryRooms(library: LibraryPoint) {
-    this.selectedLibraryName = library.name;
-    this.selectedLibrary$.next(library.name);
-    this.onlyShowFreeRoomsForLibrary = true;
-    this.search = library.name;
-    this.search$.next(library.name);
-    await this.setViewMode('rooms');
-  }
+  this.selectedLibraryName = library.name;
+  this.selectedLibrary$.next(library.name);
+  this.onlyShowFreeRoomsForLibrary = true;
+  this.search = library.name;
+  this.search$.next(library.name);
+
+  await this.setViewMode('rooms');
+  this.cdr.detectChanges();
+}
 
   clearLibraryRoomFilter() {
     this.selectedLibraryName = '';
@@ -421,9 +433,9 @@ export class UserAreaComponent implements AfterViewInit, OnDestroy {
 
   private async initMap(): Promise<void> {
     if (this.map) {
-    this.map.remove();
-    this.map = null;
-    this.markersLayer = null;
+      this.map.remove();
+      this.map = null;
+      this.markersLayer = null;
     }
 
     const leaflet = await import('leaflet');
@@ -519,10 +531,17 @@ export class UserAreaComponent implements AfterViewInit, OnDestroy {
         draggable: this.isAdmin,
       });
 
-      marker.bindPopup(this.buildLibraryPopup(library));
+      marker.bindTooltip(library.name, {
+        permanent: true,
+        direction: 'top',
+        offset: [0, -30],
+        className: 'ua-mapLabel',
+      });
 
       marker.on('click', () => {
-        this.openLibraryRooms(library);
+        this.ngZone.run(() => {
+          this.openLibraryRooms(library);
+        });
       });
 
       marker.on('dragend', (event: any) => {
@@ -537,20 +556,6 @@ export class UserAreaComponent implements AfterViewInit, OnDestroy {
 
       marker.addTo(this.markersLayer);
     }
-  }
-
-  private buildLibraryPopup(library: LibraryPoint): string {
-    const adminText = this.isAdmin
-      ? `<div style="margin-top:6px;font-size:12px;color:#475569;">Drag marker to change position</div>`
-      : '';
-
-    return `
-      <div style="min-width:180px;">
-        <div style="font-weight:700;font-size:15px;color:#0f172a;">${library.name}</div>
-        <div style="margin-top:4px;font-size:12px;color:#64748b;">Click marker to see available rooms</div>
-        ${adminText}
-      </div>
-    `;
   }
 
   startAddLibraryMode() {
