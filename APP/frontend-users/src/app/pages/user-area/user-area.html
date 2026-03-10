@@ -1,19 +1,36 @@
-<!-- src/app/pages/user-area/user-area.html -->
-<div class="user-area">
-  <div class="ua-panel card">
-    <div class="ua-panelHeader">
-      <div class="ua-headText">
-        <h1 class="ua-title">
+<div class="user-area user-area--mapMode">
+  <div class="ua-shell">
+    <div class="ua-topHeader">
+      <div class="ua-mapTitleBlock">
+        <h1 class="ua-mapTitle">
           Hello
           <span class="ua-name" *ngIf="userName$ | async as fullName">
             {{ (fullName || '').split(' ')[0] }}
           </span>
         </h1>
-        <p class="ua-subtitle">Search libraries (faculties) and check study rooms availability.</p>
+        <p class="ua-mapSubtitle" *ngIf="viewMode === 'map'">
+          Explore the libraries on the interactive map.
+        </p>
+        <p class="ua-mapSubtitle" *ngIf="viewMode === 'rooms'">
+          Search libraries and check study rooms availability.
+        </p>
       </div>
 
-      <div class="ua-actions">
-        <button class="btn-primary" *ngIf="isAdmin" (click)="goToAdminPanel()">
+      <div class="ua-mapToolbarRight">
+        <button
+          class="btn-primary"
+          type="button"
+          *ngIf="isAdmin && viewMode === 'map'"
+          (click)="startAddLibraryMode()"
+        >
+          Add library
+        </button>
+
+        <button
+          class="btn-primary"
+          *ngIf="isAdmin && viewMode === 'rooms'"
+          (click)="goToAdminPanel()"
+        >
           Go to Admin Panel
         </button>
 
@@ -23,111 +40,257 @@
       </div>
     </div>
 
-    <!-- MIS RESERVAS -->
-    <div class="ua-myReservations" *ngIf="myReservations$ | async as myReservations">
-      <div class="ua-sectionHeader">
-        <h2 class="ua-h2">My Reservations</h2>
-        <span class="ua-count">{{ myReservations.length }} reservations</span>
-      </div>
+    <div class="ua-viewSwitchWrap">
+      <button
+        type="button"
+        class="ua-viewSwitch"
+        [class.ua-viewSwitch--rooms]="viewMode === 'rooms'"
+        (click)="setViewMode(viewMode === 'map' ? 'rooms' : 'map')"
+        aria-label="Switch between map and rooms"
+      >
+        <span class="ua-viewSwitch__trackLabel ua-viewSwitch__trackLabel--left">Map</span>
+        <span class="ua-viewSwitch__trackLabel ua-viewSwitch__trackLabel--right">Rooms</span>
+        <span class="ua-viewSwitch__thumb">
+          <span class="ua-viewSwitch__thumbText">
+            {{ viewMode === 'map' ? 'Map' : 'Rooms' }}
+          </span>
+        </span>
+      </button>
+    </div>
 
-      <div class="ua-myReservationsList" *ngIf="myReservations.length > 0; else noReservations">
-        <div class="ua-myReservationCard" *ngFor="let r of myReservations">
-          <div class="ua-myReservationTop">
+    <!-- VISTA MAPA -->
+    <div *ngIf="viewMode === 'map'" class="ua-mapLayout">
+      <div class="ua-mapCard">
+        <div id="bookit-map" class="ua-map"></div>
+
+        <div class="ua-mapHint">
+          <span>Drag, zoom and explore the campus libraries.</span>
+          <span *ngIf="isAdmin">Admins can drag markers and add new libraries.</span>
+          <span>Click any library to see its available rooms.</span>
+        </div>
+
+        <div class="ua-adminAddCard" *ngIf="isAdmin && isAddLibraryMode">
+          <div class="ua-adminAddHeader">
             <div>
-              <div class="ua-roomTitle">{{ r.facultad }}</div>
-              <div class="ua-roomMeta">Room {{ r.numeroSala }}</div>
+              <h3 class="ua-adminAddTitle">Add library</h3>
+              <p class="ua-adminAddSubtitle">Click on the map to choose the position.</p>
+            </div>
+            <button class="ua-closeBtn" type="button" (click)="cancelAddLibraryMode()">×</button>
+          </div>
+
+          <div class="ua-modalBody">
+            <div class="field">
+              <label class="label" for="newLibraryName">Library name</label>
+              <input
+                class="input"
+                id="newLibraryName"
+                type="text"
+                [(ngModel)]="newLibraryName"
+                placeholder="Example: Central Library"
+              />
             </div>
 
-            <span class="ua-badge ua-badge--busy">Reserved</span>
+            <div class="ua-selectedCoords">
+              <div><strong>Lat:</strong> {{ pendingLibraryLat ?? 'Not selected yet' }}</div>
+              <div><strong>Lng:</strong> {{ pendingLibraryLng ?? 'Not selected yet' }}</div>
+            </div>
           </div>
 
-          <div class="ua-countdown">
-            <span class="ua-countdownLabel">Available in</span>
-            <span class="ua-countdownValue">{{ r.timeToFreeText ? r.timeToFreeText : '—' }}</span>
-          </div>
-
-          <div class="ua-myReservationActions">
-            <button class="btn-primary" type="button" (click)="openEditReservationForm(r)">
-              Modify reservation
+          <div class="ua-modalActions">
+            <button class="btn-ghost" type="button" (click)="cancelAddLibraryMode()">
+              Cancel
+            </button>
+            <button class="btn-primary" type="button" (click)="saveNewLibrary()">
+              Save library
             </button>
           </div>
         </div>
       </div>
 
-      <ng-template #noReservations>
-        <div class="ua-empty ua-empty--small">You do not have active reservations.</div>
-      </ng-template>
-    </div>
+      <div class="ua-librarySidebar">
+        <div class="ua-librarySidebarHeader">
+          <h2 class="ua-h2">Libraries</h2>
+          <span class="ua-count">{{ libraries.length }} libraries</span>
+        </div>
 
-    <!-- BUSCADOR -->
-    <div class="ua-searchBlock">
-      <div class="ua-searchRow">
-        <div class="ua-searchIcon" aria-hidden="true">⌕</div>
+        <div class="ua-libraryList">
+          <div class="ua-libraryItem" *ngFor="let library of libraries">
+            <div class="ua-libraryItemMain" (click)="openLibraryRooms(library)">
+              <div class="ua-libraryItemName">{{ library.name }}</div>
+              <div class="ua-libraryItemCoords">
+                {{ library.lat }}, {{ library.lng }}
+              </div>
+            </div>
 
-        <input
-          class="ua-searchInput"
-          [(ngModel)]="search"
-          (ngModelChange)="onSearchChange($event)"
-          placeholder="Search by faculty or room number…"
-          autocomplete="off"
-        />
+            <div class="ua-libraryItemActions">
+              <button
+                class="btn-ghost ua-libraryItemBtn"
+                type="button"
+                (click)="openLibraryRooms(library)"
+              >
+                View rooms
+              </button>
+
+              <button
+                *ngIf="isAdmin"
+                class="ua-deleteLibraryBtn"
+                type="button"
+                (click)="removeLibrary(library.id)"
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
       </div>
-
-      <div class="ua-chipRow" *ngIf="faculties$ | async as faculties">
-        <button class="ua-chip" type="button" (click)="search=''; onSearchChange('')">
-          All
-        </button>
-
-        <button
-          class="ua-chip"
-          type="button"
-          *ngFor="let f of faculties"
-          (click)="search=f; onSearchChange(f)"
-        >
-          {{ f }}
-        </button>
-      </div>
     </div>
 
-    <!-- SALAS -->
-    <div class="ua-roomsHeader">
-      <h2 class="ua-h2">Study Rooms</h2>
-      <span class="ua-count" *ngIf="salasFiltered$ | async as salas">{{ salas.length }} rooms</span>
-    </div>
-
-    <div class="ua-grid" *ngIf="salasFiltered$ | async as salas; else loading">
-      <div class="ua-room" *ngFor="let s of salas">
-        <div class="ua-roomTop">
+    <!-- VISTA ROOMS -->
+    <div *ngIf="viewMode === 'rooms'" class="ua-panel card">
+      <div
+        class="ua-selectedLibraryBlock"
+        *ngIf="onlyShowFreeRoomsForLibrary && selectedLibraryName"
+      >
+        <div class="ua-sectionHeader">
           <div>
-            <div class="ua-roomTitle">{{ s.facultad }}</div>
-            <div class="ua-roomMeta">Room {{ s.numeroSala }}</div>
+            <h2 class="ua-h2">{{ selectedLibraryName }} · Available rooms</h2>
+            <div class="ua-selectedLibraryText">
+              Showing only free rooms available to reserve in {{ selectedLibraryName }}.
+            </div>
           </div>
 
-          <span class="ua-badge" [class.ua-badge--free]="s.isFree" [class.ua-badge--busy]="!s.isFree">
-            {{ s.isFree ? 'Free' : 'Occupied' }}
-          </span>
+          <button class="btn-ghost" type="button" (click)="clearLibraryRoomFilter()">
+            Show all rooms
+          </button>
         </div>
 
-        <div *ngIf="!s.isFree" class="ua-countdown">
-          <span class="ua-countdownLabel">Available in</span>
-          <span class="ua-countdownValue">{{ s.timeToFreeText ? s.timeToFreeText : '—' }}</span>
+        <div class="ua-grid" *ngIf="libraryAvailableRooms$ | async as libraryRooms">
+          <div class="ua-room" *ngFor="let s of libraryRooms">
+            <div class="ua-roomTop">
+              <div>
+                <div class="ua-roomTitle">{{ s.facultad }}</div>
+                <div class="ua-roomMeta">Room {{ s.numeroSala }}</div>
+              </div>
+
+              <span class="ua-badge ua-badge--free">Free</span>
+            </div>
+
+            <div class="ua-freeActions">
+              <button class="ua-reserveBtn" type="button" (click)="openReserveForm(s)">
+                Reserve
+              </button>
+            </div>
+          </div>
+
+          <div class="ua-empty" *ngIf="libraryRooms.length === 0">
+            There are no free rooms right now in {{ selectedLibraryName }}.
+          </div>
+        </div>
+      </div>
+
+      <div class="ua-myReservations" *ngIf="myReservations$ | async as myReservations">
+        <div class="ua-sectionHeader">
+          <h2 class="ua-h2">My Reservations</h2>
+          <span class="ua-count">{{ myReservations.length }} reservations</span>
         </div>
 
-        <div *ngIf="s.isFree" class="ua-freeActions">
-          <button class="ua-reserveBtn" type="button" (click)="openReserveForm(s)">
-            Reserve
+        <div class="ua-myReservationsList" *ngIf="myReservations.length > 0; else noReservations">
+          <div class="ua-myReservationCard" *ngFor="let r of myReservations">
+            <div class="ua-myReservationTop">
+              <div>
+                <div class="ua-roomTitle">{{ r.facultad }}</div>
+                <div class="ua-roomMeta">Room {{ r.numeroSala }}</div>
+              </div>
+
+              <span class="ua-badge ua-badge--busy">Reserved</span>
+            </div>
+
+            <div class="ua-countdown">
+              <span class="ua-countdownLabel">Available in</span>
+              <span class="ua-countdownValue">{{ r.timeToFreeText ? r.timeToFreeText : '—' }}</span>
+            </div>
+
+            <div class="ua-myReservationActions">
+              <button class="btn-primary" type="button" (click)="openEditReservationForm(r)">
+                Modify reservation
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <ng-template #noReservations>
+          <div class="ua-empty ua-empty--small">You do not have active reservations.</div>
+        </ng-template>
+      </div>
+
+      <div class="ua-searchBlock">
+        <div class="ua-searchRow">
+          <div class="ua-searchIcon" aria-hidden="true">⌕</div>
+
+          <input
+            class="ua-searchInput"
+            [(ngModel)]="search"
+            (ngModelChange)="onSearchChange($event)"
+            placeholder="Search by faculty or room number…"
+            autocomplete="off"
+          />
+        </div>
+
+        <div class="ua-chipRow" *ngIf="faculties$ | async as faculties">
+          <button class="ua-chip" type="button" (click)="search=''; onSearchChange('')">
+            All
+          </button>
+
+          <button
+            class="ua-chip"
+            type="button"
+            *ngFor="let f of faculties"
+            (click)="search=f; onSearchChange(f)"
+          >
+            {{ f }}
           </button>
         </div>
       </div>
 
-      <div class="ua-empty" *ngIf="salas.length === 0">
-        No rooms match your search.
+      <div class="ua-roomsHeader">
+        <h2 class="ua-h2">Study Rooms</h2>
+        <span class="ua-count" *ngIf="salasFiltered$ | async as salas">{{ salas.length }} rooms</span>
       </div>
-    </div>
 
-    <ng-template #loading>
-      <div class="ua-empty">Loading rooms…</div>
-    </ng-template>
+      <div class="ua-grid" *ngIf="salasFiltered$ | async as salas; else loading">
+        <div class="ua-room" *ngFor="let s of salas">
+          <div class="ua-roomTop">
+            <div>
+              <div class="ua-roomTitle">{{ s.facultad }}</div>
+              <div class="ua-roomMeta">Room {{ s.numeroSala }}</div>
+            </div>
+
+            <span class="ua-badge" [class.ua-badge--free]="s.isFree" [class.ua-badge--busy]="!s.isFree">
+              {{ s.isFree ? 'Free' : 'Occupied' }}
+            </span>
+          </div>
+
+          <div *ngIf="!s.isFree" class="ua-countdown">
+            <span class="ua-countdownLabel">Available in</span>
+            <span class="ua-countdownValue">{{ s.timeToFreeText ? s.timeToFreeText : '—' }}</span>
+          </div>
+
+          <div *ngIf="s.isFree" class="ua-freeActions">
+            <button class="ua-reserveBtn" type="button" (click)="openReserveForm(s)">
+              Reserve
+            </button>
+          </div>
+        </div>
+
+        <div class="ua-empty" *ngIf="salas.length === 0">
+          No rooms match your search.
+        </div>
+      </div>
+
+      <ng-template #loading>
+        <div class="ua-empty">Loading rooms…</div>
+      </ng-template>
+    </div>
   </div>
 </div>
 

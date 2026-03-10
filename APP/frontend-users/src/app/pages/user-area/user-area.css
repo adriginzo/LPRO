@@ -4,10 +4,310 @@
 
 .user-area {
   min-height: calc(100vh - 88px);
-  padding: 32px 24px 48px;
+  padding: 24px;
   background: #f6f7fb;
   font-family: Inter, "SF Pro Display", "Segoe UI", sans-serif;
   color: #0f172a;
+}
+
+.user-area--mapMode {
+  position: relative;
+}
+
+.ua-shell {
+  max-width: 1480px;
+  margin: 0 auto;
+}
+
+.ua-topHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 24px;
+  margin-bottom: 18px;
+}
+
+.ua-mapTitle {
+  margin: 0;
+  font-size: 2rem;
+  line-height: 1.1;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  color: #0f172a;
+}
+
+.ua-mapSubtitle {
+  margin: 10px 0 0;
+  font-size: 0.98rem;
+  color: #475569;
+}
+
+.ua-name {
+  color: #2563eb;
+}
+
+.ua-mapToolbarRight {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.ua-viewSwitchWrap {
+  display: flex;
+  justify-content: center;
+  margin: 6px 0 26px;
+}
+
+.ua-viewSwitch {
+  position: relative;
+  width: 240px;
+  height: 74px;
+  border: none;
+  border-radius: 999px;
+  background: #d7dde4;
+  box-shadow:
+    inset 0 2px 4px rgba(15, 23, 42, 0.05),
+    0 14px 28px rgba(15, 23, 42, 0.08);
+  cursor: pointer;
+  padding: 0;
+  transition: background 0.22s ease;
+}
+
+.ua-viewSwitch--rooms {
+  background: #47cf5f;
+}
+
+.ua-viewSwitch__trackLabel {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 1rem;
+  font-weight: 700;
+  line-height: 1;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.ua-viewSwitch__trackLabel--left {
+  left: 34px;
+  color: #516275;
+}
+
+.ua-viewSwitch__trackLabel--right {
+  right: 28px;
+  color: #ffffff;
+}
+
+.ua-viewSwitch:not(.ua-viewSwitch--rooms) .ua-viewSwitch__trackLabel--right {
+  color: #516275;
+}
+
+.ua-viewSwitch.ua-viewSwitch--rooms .ua-viewSwitch__trackLabel--left {
+  color: rgba(255, 255, 255, 0.92);
+}
+
+.ua-viewSwitch__thumb {
+  position: absolute;
+  top: 4px;
+  left: 4px;
+  width: 106px;
+  height: 66px;
+  border-radius: 999px;
+  background: #f8fafc;
+  box-shadow:
+    0 10px 22px rgba(15, 23, 42, 0.18),
+    0 2px 6px rgba(15, 23, 42, 0.08);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.26s ease;
+  z-index: 2;
+}
+
+.ua-viewSwitch--rooms .ua-viewSwitch__thumb {
+  transform: translateX(126px);
+}
+
+.ua-viewSwitch__thumbText {
+  font-size: 0.98rem;
+  font-weight: 800;
+  color: #334155;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.ua-mapLayout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 320px;
+  gap: 20px;
+  align-items: stretch;
+}
+
+.ua-mapCard {
+  position: relative;
+  min-height: calc(100vh - 260px);
+  background: rgba(255, 255, 255, 0.82);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  border-radius: 28px;
+  box-shadow:
+    0 10px 30px rgba(15, 23, 42, 0.08),
+    0 2px 8px rgba(15, 23, 42, 0.04);
+  padding: 14px;
+  overflow: hidden;
+}
+
+.ua-map {
+  width: 100%;
+  height: 100%;
+  min-height: calc(100vh - 290px);
+  border-radius: 22px;
+}
+
+.ua-mapHint {
+  position: absolute;
+  left: 28px;
+  bottom: 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-width: 420px;
+  padding: 14px 16px;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.9);
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.08);
+  font-size: 0.9rem;
+  color: #334155;
+  z-index: 500;
+}
+
+.ua-librarySidebar {
+  background: rgba(255, 255, 255, 0.82);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  border-radius: 28px;
+  box-shadow:
+    0 10px 30px rgba(15, 23, 42, 0.08),
+    0 2px 8px rgba(15, 23, 42, 0.04);
+  padding: 20px;
+  min-height: calc(100vh - 260px);
+}
+
+.ua-librarySidebarHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.ua-libraryList {
+  display: grid;
+  gap: 12px;
+}
+
+.ua-libraryItem {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px;
+  border-radius: 18px;
+  background: rgba(248, 250, 252, 0.92);
+  border: 1px solid rgba(148, 163, 184, 0.16);
+}
+
+.ua-libraryItemMain {
+  cursor: pointer;
+}
+
+.ua-libraryItemName {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.ua-libraryItemCoords {
+  margin-top: 4px;
+  font-size: 0.83rem;
+  color: #64748b;
+  word-break: break-word;
+}
+
+.ua-libraryItemActions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.ua-libraryItemBtn {
+  padding: 10px 14px;
+}
+
+.ua-deleteLibraryBtn {
+  appearance: none;
+  border: none;
+  border-radius: 12px;
+  padding: 10px 12px;
+  font-size: 0.86rem;
+  font-weight: 600;
+  cursor: pointer;
+  background: rgba(239, 68, 68, 0.1);
+  color: #b91c1c;
+  transition: all 0.18s ease;
+}
+
+.ua-deleteLibraryBtn:hover {
+  background: rgba(239, 68, 68, 0.16);
+}
+
+.ua-adminAddCard {
+  position: absolute;
+  top: 22px;
+  right: 22px;
+  width: min(420px, calc(100% - 44px));
+  z-index: 600;
+  background: rgba(255, 255, 255, 0.96);
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  border-radius: 24px;
+  box-shadow:
+    0 24px 48px rgba(15, 23, 42, 0.16),
+    0 4px 10px rgba(15, 23, 42, 0.06);
+  padding: 20px;
+}
+
+.ua-adminAddHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.ua-adminAddTitle {
+  margin: 0;
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.ua-adminAddSubtitle {
+  margin: 6px 0 0;
+  font-size: 0.9rem;
+  color: #64748b;
+}
+
+.ua-selectedCoords {
+  display: grid;
+  gap: 8px;
+  padding: 14px;
+  border-radius: 16px;
+  background: #f8fafc;
+  color: #334155;
+  font-size: 0.9rem;
+  border: 1px solid rgba(148, 163, 184, 0.16);
 }
 
 .ua-panel {
@@ -22,43 +322,6 @@
     0 10px 30px rgba(15, 23, 42, 0.08),
     0 2px 8px rgba(15, 23, 42, 0.04);
   padding: 28px;
-}
-
-.ua-panelHeader {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 24px;
-  margin-bottom: 24px;
-}
-
-.ua-headText {
-  min-width: 0;
-}
-
-.ua-title {
-  margin: 0;
-  font-size: 2rem;
-  line-height: 1.1;
-  font-weight: 700;
-  letter-spacing: -0.03em;
-  color: #0f172a;
-}
-
-.ua-name {
-  color: #2563eb;
-}
-
-.ua-subtitle {
-  margin: 10px 0 0;
-  font-size: 0.98rem;
-  color: #475569;
-}
-
-.ua-actions {
-  display: flex;
-  gap: 12px;
-  flex-wrap: wrap;
 }
 
 .btn-primary,
@@ -110,6 +373,20 @@
   cursor: not-allowed;
   transform: none;
   box-shadow: none;
+}
+
+.ua-selectedLibraryBlock {
+  margin-bottom: 30px;
+  padding: 22px;
+  border-radius: 24px;
+  background: linear-gradient(180deg, rgba(239,246,255,0.82) 0%, rgba(255,255,255,0.9) 100%);
+  border: 1px solid rgba(37, 99, 235, 0.12);
+}
+
+.ua-selectedLibraryText {
+  margin-top: 6px;
+  font-size: 0.92rem;
+  color: #475569;
 }
 
 .ua-searchBlock {
@@ -169,7 +446,8 @@
   border-color: rgba(37, 99, 235, 0.2);
 }
 
-.ua-roomsHeader {
+.ua-roomsHeader,
+.ua-sectionHeader {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -189,37 +467,30 @@
   color: #64748b;
 }
 
-.ua-grid {
+.ua-grid,
+.ua-myReservationsList {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
   gap: 18px;
   align-items: stretch;
 }
 
-.ua-room {
+.ua-room,
+.ua-myReservationCard {
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 16px;
   padding: 22px;
   border-radius: 24px;
-  background: linear-gradient(180deg, rgba(255,255,255,0.95) 0%, rgba(248,250,252,0.95) 100%);
+  background: rgba(255, 255, 255, 0.92);
   border: 1px solid rgba(148, 163, 184, 0.16);
   box-shadow:
     0 10px 24px rgba(15, 23, 42, 0.06),
     0 2px 6px rgba(15, 23, 42, 0.03);
-  transition:
-    transform 0.18s ease,
-    box-shadow 0.18s ease;
 }
 
-.ua-room:hover {
-  transform: translateY(-3px);
-  box-shadow:
-    0 16px 34px rgba(15, 23, 42, 0.08),
-    0 4px 10px rgba(15, 23, 42, 0.04);
-}
-
-.ua-roomTop {
+.ua-roomTop,
+.ua-myReservationTop {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
@@ -306,6 +577,35 @@
   background: rgba(255, 255, 255, 0.76);
   border: 1px dashed rgba(148, 163, 184, 0.28);
   border-radius: 20px;
+}
+
+.ua-empty--small {
+  padding: 22px 18px;
+}
+
+.ua-myReservations {
+  margin-bottom: 30px;
+}
+
+.ua-myReservationActions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.ua-inlineReservation {
+  display: grid;
+  gap: 8px;
+}
+
+.ua-inlineReservationText {
+  font-size: 0.98rem;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.ua-inlineReservationSubtext {
+  font-size: 0.9rem;
+  color: #64748b;
 }
 
 .ua-modalOverlay {
@@ -432,20 +732,40 @@
   }
 }
 
+@media (max-width: 1180px) {
+  .ua-mapLayout {
+    grid-template-columns: 1fr;
+  }
+
+  .ua-librarySidebar {
+    min-height: auto;
+  }
+
+  .ua-mapCard {
+    min-height: 70vh;
+  }
+
+  .ua-map {
+    min-height: 68vh;
+  }
+}
+
 @media (max-width: 860px) {
-  .ua-panelHeader {
+  .ua-topHeader,
+  .ua-sectionHeader,
+  .ua-libraryItemActions {
     flex-direction: column;
     align-items: stretch;
   }
 
-  .ua-actions {
+  .ua-mapToolbarRight {
     justify-content: flex-start;
   }
 }
 
 @media (max-width: 640px) {
   .user-area {
-    padding: 20px 14px 36px;
+    padding: 18px 14px 28px;
   }
 
   .ua-panel {
@@ -453,11 +773,13 @@
     border-radius: 22px;
   }
 
-  .ua-title {
+  .ua-title,
+  .ua-mapTitle {
     font-size: 1.7rem;
   }
 
-  .ua-modal {
+  .ua-modal,
+  .ua-adminAddCard {
     padding: 18px;
     border-radius: 22px;
   }
@@ -470,67 +792,33 @@
   .ua-modalActions .btn-ghost {
     width: 100%;
   }
-}
 
-.ua-myReservations {
-  margin-bottom: 30px;
-}
+  .ua-mapHint {
+    left: 16px;
+    right: 16px;
+    bottom: 16px;
+    max-width: none;
+  }
 
-.ua-sectionHeader {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 16px;
-}
+  .ua-viewSwitch {
+    width: 210px;
+    height: 68px;
+  }
 
-.ua-myReservationsList {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-  gap: 16px;
-}
+  .ua-viewSwitch__thumb {
+    width: 92px;
+    height: 60px;
+  }
 
-.ua-myReservationCard {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-  padding: 22px;
-  border-radius: 24px;
-  background: rgba(255, 255, 255, 0.9);
-  border: 1px solid rgba(148, 163, 184, 0.16);
-  box-shadow:
-    0 10px 24px rgba(15, 23, 42, 0.06),
-    0 2px 6px rgba(15, 23, 42, 0.03);
-}
+  .ua-viewSwitch--rooms .ua-viewSwitch__thumb {
+    transform: translateX(110px);
+  }
 
-.ua-myReservationTop {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 14px;
-}
+  .ua-viewSwitch__trackLabel--left {
+    left: 26px;
+  }
 
-.ua-myReservationActions {
-  display: flex;
-  justify-content: flex-end;
-}
-
-.ua-empty--small {
-  padding: 22px 18px;
-}
-
-.ua-inlineReservation {
-  display: grid;
-  gap: 8px;
-}
-
-.ua-inlineReservationText {
-  font-size: 0.98rem;
-  font-weight: 700;
-  color: #0f172a;
-}
-
-.ua-inlineReservationSubtext {
-  font-size: 0.9rem;
-  color: #64748b;
+  .ua-viewSwitch__trackLabel--right {
+    right: 22px;
+  }
 }
