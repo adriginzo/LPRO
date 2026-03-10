@@ -33,6 +33,13 @@ type SalaVM = Sala & {
   timeToFreeText: string | null;
 };
 
+type LibraryApi = {
+  _id: string;
+  name: string;
+  lat: number;
+  lng: number;
+};
+
 type LibraryPoint = {
   id: string;
   name: string;
@@ -55,6 +62,8 @@ export class UserAreaComponent implements AfterViewInit, OnDestroy {
   currentUserId = '';
 
   private readonly salasApiUrl = 'http://100.80.240.31:3000/salas';
+  private readonly librariesApiUrl = 'http://100.80.240.31:3002/libraries';
+
   private refreshSalas$ = new Subject<void>();
 
   salasRaw$: Observable<Sala[]>;
@@ -91,14 +100,12 @@ export class UserAreaComponent implements AfterViewInit, OnDestroy {
   pendingLibraryLng: number | null = null;
   newLibraryName = '';
 
-  private readonly librariesStorageKey = 'bookit_libraries_map';
-
   constructor(
-  private auth: AuthService,
-  private http: HttpClient,
-  private ngZone: NgZone,
-  private cdr: ChangeDetectorRef
-) {
+    private auth: AuthService,
+    private http: HttpClient,
+    private ngZone: NgZone,
+    private cdr: ChangeDetectorRef
+  ) {
     this.isAdmin = this.auth.isAdmin();
 
     const jwtUser = this.auth.getUser();
@@ -182,15 +189,15 @@ export class UserAreaComponent implements AfterViewInit, OnDestroy {
       }),
       shareReplay(1)
     );
-
-    this.libraries = this.loadLibraries();
   }
 
   async ngAfterViewInit(): Promise<void> {
-    if (this.viewMode === 'map') {
-      await this.initMap();
-    }
+  if (this.viewMode === 'map') {
+    await this.initMap();
+    this.loadLibrariesFromApi();
+    this.cdr.detectChanges();
   }
+}
 
   ngOnDestroy(): void {
     if (this.map) {
@@ -409,19 +416,20 @@ export class UserAreaComponent implements AfterViewInit, OnDestroy {
 
     setTimeout(async () => {
       await this.initMap();
+      this.loadLibrariesFromApi();
     }, 0);
   }
 
   async openLibraryRooms(library: LibraryPoint) {
-  this.selectedLibraryName = library.name;
-  this.selectedLibrary$.next(library.name);
-  this.onlyShowFreeRoomsForLibrary = true;
-  this.search = library.name;
-  this.search$.next(library.name);
+    this.selectedLibraryName = library.name;
+    this.selectedLibrary$.next(library.name);
+    this.onlyShowFreeRoomsForLibrary = true;
+    this.search = library.name;
+    this.search$.next(library.name);
 
-  await this.setViewMode('rooms');
-  this.cdr.detectChanges();
-}
+    await this.setViewMode('rooms');
+    this.cdr.detectChanges();
+  }
 
   clearLibraryRoomFilter() {
     this.selectedLibraryName = '';
@@ -488,37 +496,25 @@ export class UserAreaComponent implements AfterViewInit, OnDestroy {
     }, 0);
   }
 
-  private getDefaultLibraries(): LibraryPoint[] {
-    return [
-      { id: this.createId(), name: 'Teleco', lat: 42.16952, lng: -8.68874 },
-      { id: this.createId(), name: 'Minas', lat: 42.16906, lng: -8.68715 },
-      { id: this.createId(), name: 'Biologia', lat: 42.167969, lng: -8.680998 },
-    ];
-  }
+  private loadLibrariesFromApi() {
+    this.http.get<LibraryApi[]>(this.librariesApiUrl).subscribe({
+      next: (libraries) => {
+        this.ngZone.run(() => {
+          this.libraries = libraries.map((lib) => ({
+            id: lib._id,
+            name: lib.name,
+            lat: lib.lat,
+            lng: lib.lng,
+          }));
 
-  private loadLibraries(): LibraryPoint[] {
-    const raw = localStorage.getItem(this.librariesStorageKey);
-
-    if (!raw) {
-      const defaults = this.getDefaultLibraries();
-      localStorage.setItem(this.librariesStorageKey, JSON.stringify(defaults));
-      return defaults;
-    }
-
-    try {
-      const parsed = JSON.parse(raw);
-      if (!Array.isArray(parsed) || parsed.length === 0) {
-        return this.getDefaultLibraries();
-      }
-
-      return parsed;
-    } catch {
-      return this.getDefaultLibraries();
-    }
-  }
-
-  private saveLibraries() {
-    localStorage.setItem(this.librariesStorageKey, JSON.stringify(this.libraries));
+          this.renderLibraryMarkers();
+          this.cdr.detectChanges();
+        });
+      },
+      error: () => {
+        alert('Could not load libraries');
+      },
+    });
   }
 
   private renderLibraryMarkers() {
@@ -548,10 +544,23 @@ export class UserAreaComponent implements AfterViewInit, OnDestroy {
         if (!this.isAdmin) return;
 
         const latlng = event.target.getLatLng();
-        library.lat = Number(latlng.lat.toFixed(6));
-        library.lng = Number(latlng.lng.toFixed(6));
-        this.saveLibraries();
-        this.renderLibraryMarkers();
+        const updatedLat = Number(latlng.lat.toFixed(6));
+        const updatedLng = Number(latlng.lng.toFixed(6));
+
+        this.http.patch(`${this.librariesApiUrl}/${library.id}`, {
+          lat: updatedLat,
+          lng: updatedLng,
+        }).subscribe({
+          next: () => {
+            library.lat = updatedLat;
+            library.lng = updatedLng;
+            this.renderLibraryMarkers();
+          },
+          error: () => {
+            alert('The library position could not be updated');
+            this.loadLibrariesFromApi();
+          },
+        });
       });
 
       marker.addTo(this.markersLayer);
@@ -589,17 +598,30 @@ export class UserAreaComponent implements AfterViewInit, OnDestroy {
       return;
     }
 
-    const newLibrary: LibraryPoint = {
-      id: this.createId(),
+    const body = {
       name,
       lat: this.pendingLibraryLat,
       lng: this.pendingLibraryLng,
     };
 
-    this.libraries = [...this.libraries, newLibrary];
-    this.saveLibraries();
-    this.renderLibraryMarkers();
-    this.cancelAddLibraryMode();
+    this.http.post<LibraryApi>(this.librariesApiUrl, body).subscribe({
+      next: (newLibrary) => {
+        this.libraries = [
+          ...this.libraries,
+          {
+            id: newLibrary._id,
+            name: newLibrary.name,
+            lat: newLibrary.lat,
+            lng: newLibrary.lng,
+          },
+        ];
+        this.renderLibraryMarkers();
+        this.cancelAddLibraryMode();
+      },
+      error: () => {
+        alert('The library could not be saved');
+      },
+    });
   }
 
   removeLibrary(libraryId: string) {
@@ -608,12 +630,14 @@ export class UserAreaComponent implements AfterViewInit, OnDestroy {
     const confirmed = window.confirm('Do you want to delete this library from the map?');
     if (!confirmed) return;
 
-    this.libraries = this.libraries.filter((lib) => lib.id !== libraryId);
-    this.saveLibraries();
-    this.renderLibraryMarkers();
-  }
-
-  private createId(): string {
-    return Math.random().toString(36).slice(2, 11);
+    this.http.delete(`${this.librariesApiUrl}/${libraryId}`).subscribe({
+      next: () => {
+        this.libraries = this.libraries.filter((lib) => lib.id !== libraryId);
+        this.renderLibraryMarkers();
+      },
+      error: () => {
+        alert('The library could not be deleted');
+      },
+    });
   }
 }
