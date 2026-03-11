@@ -469,12 +469,13 @@ export class UserAreaComponent implements AfterViewInit, OnDestroy {
     this.map = this.L.map('bookit-map', {
       center: [42.1699, -8.6878],
       zoom: 15,
-      zoomControl: true,
+      zoomControl: false,
+      attributionControl: false,
     });
 
     this.L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       maxZoom: 19,
-      attribution: '&copy; OpenStreetMap contributors',
+      attribution: '',
     }).addTo(this.map);
 
     this.markersLayer = this.L.layerGroup().addTo(this.map);
