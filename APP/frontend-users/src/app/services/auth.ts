@@ -9,7 +9,7 @@ type JwtPayload = {
   email?: string;
   sub?: string;
   type?: string;
-  exp?: number; // seconds since epoch
+  exp?: number;
   iat?: number;
 };
 
@@ -21,12 +21,14 @@ export class AuthService {
 
   login(email: string, password: string): Observable<any> {
     return this.http
-      .post(`${this.baseUrl}/users/login`, { email, password })
-      .pipe(tap((res: any) => localStorage.setItem('token', res.access_token)));
+      .post<any>(`${this.baseUrl}/users/login`, { email, password })
+      .pipe(tap((res) => localStorage.setItem('token', res.access_token)));
   }
 
   register(user: any): Observable<any> {
-    return this.http.post(`${this.baseUrl}/users`, user);
+    return this.http.post(`${this.baseUrl}/users`, user, {
+      responseType: 'text' as 'json',
+    });
   }
 
   logout() {
@@ -52,11 +54,11 @@ export class AuthService {
   private isTokenExpired(token: string): boolean {
     try {
       const payload = jwtDecode<JwtPayload>(token);
-      if (!payload?.exp) return false; // si no hay exp, no lo consideramos expirado
+      if (!payload?.exp) return false;
       const nowSeconds = Math.floor(Date.now() / 1000);
       return payload.exp <= nowSeconds;
     } catch {
-      return true; // si no se puede decodificar, lo tratamos como inválido
+      return true;
     }
   }
 

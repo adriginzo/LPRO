@@ -1,0 +1,149 @@
+<!-- src/app/pages/auth/auth.html -->
+<div class="auth-page">
+  <div class="auth-container" [class.active]="isRegisterMode">
+    <!-- REGISTER -->
+    <div class="form-container sign-up">
+      <form class="auth-form" (ngSubmit)="register()">
+        <h1>Create Account</h1>
+        <span>Use your details to create your account</span>
+
+        <div class="grid-2">
+          <input
+            type="text"
+            [(ngModel)]="firstName"
+            name="firstName"
+            placeholder="First name"
+            required
+            autocomplete="given-name"
+          />
+          <input
+            type="text"
+            [(ngModel)]="lastName"
+            name="lastName"
+            placeholder="Last name"
+            required
+            autocomplete="family-name"
+          />
+        </div>
+
+        <input
+          type="email"
+          [(ngModel)]="registerEmail"
+          name="registerEmail"
+          placeholder="Email"
+          required
+          autocomplete="email"
+        />
+
+        <div class="grid-2">
+          <input
+            type="text"
+            [(ngModel)]="dni"
+            name="dni"
+            placeholder="DNI"
+            required
+            autocomplete="off"
+          />
+          <input
+            type="text"
+            [(ngModel)]="phone"
+            name="phone"
+            placeholder="Phone"
+            autocomplete="tel"
+          />
+        </div>
+
+        <div class="grid-2">
+          <input
+            type="text"
+            [(ngModel)]="school"
+            name="school"
+            placeholder="School"
+            autocomplete="organization"
+          />
+          <input
+            type="text"
+            [(ngModel)]="degree"
+            name="degree"
+            placeholder="Degree"
+            autocomplete="off"
+          />
+        </div>
+
+        <input
+          type="password"
+          [(ngModel)]="registerPassword"
+          name="registerPassword"
+          placeholder="Password"
+          required
+          autocomplete="new-password"
+        />
+
+        <button type="submit" class="btn-primary" [disabled]="isSubmitting">
+          Create account
+        </button>
+      </form>
+    </div>
+
+    <!-- LOGIN -->
+    <div class="form-container sign-in">
+      <form class="auth-form" (ngSubmit)="login()">
+        <h1>Log In</h1>
+        <span>Use your email and password to continue</span>
+
+        <input
+          type="email"
+          [(ngModel)]="loginEmail"
+          name="loginEmail"
+          placeholder="Email"
+          required
+          autocomplete="email"
+        />
+
+        <input
+          type="password"
+          [(ngModel)]="loginPassword"
+          name="loginPassword"
+          placeholder="Password"
+          required
+          autocomplete="current-password"
+        />
+
+        <button type="submit" class="btn-primary" [disabled]="isSubmitting">
+          Log in
+        </button>
+      </form>
+    </div>
+
+    <!-- TOGGLE -->
+    <div class="toggle-container">
+      <div class="toggle">
+        <div class="toggle-panel toggle-left">
+          <h1>Welcome back!</h1>
+          <p>Enter your credentials to access all the features of the platform.</p>
+          <button
+            type="button"
+            class="btn-ghost"
+            (click)="setLoginMode()"
+            [disabled]="isSubmitting"
+          >
+            Log in
+          </button>
+        </div>
+
+        <div class="toggle-panel toggle-right">
+          <h1>Hello!</h1>
+          <p>Create your account and start using the platform in just a moment.</p>
+          <button
+            type="button"
+            class="btn-ghost"
+            (click)="setRegisterMode()"
+            [disabled]="isSubmitting"
+          >
+            Create account
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
