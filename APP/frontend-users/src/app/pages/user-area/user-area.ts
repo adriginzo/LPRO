@@ -1,4 +1,3 @@
-// src/app/pages/user-area/user-area.ts
 import { Component, AfterViewInit, OnDestroy, NgZone, ChangeDetectorRef } from '@angular/core';
 import { CommonModule, DatePipe } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
@@ -13,6 +12,8 @@ import {
   interval,
   startWith,
   switchMap,
+  merge,
+  of,
 } from 'rxjs';
 import { FormsModule } from '@angular/forms';
 
@@ -22,8 +23,8 @@ type Sala = {
   numeroSala: number;
   personasDentro: number;
   ruidoDb: number;
-  horaEntrada: string | Date;
-  horaSalida?: string | Date;
+  horaEntrada?: string | Date | null;
+  horaSalida?: string | Date | null;
   ultimoReservadoPor?: string;
   ultimoReservadoPorId?: string;
 };
@@ -31,6 +32,24 @@ type Sala = {
 type SalaVM = Sala & {
   isFree: boolean;
   timeToFreeText: string | null;
+};
+
+type ReservaApi = {
+  _id: string;
+  salaId: string;
+  facultad: string;
+  numeroSala: number;
+  userId: string;
+  userName: string;
+  horaEntrada: string | Date;
+  horaSalida: string | Date;
+};
+
+type ReservaVM = ReservaApi & {
+  isActiveNow: boolean;
+  statusLabel: string;
+  countdownLabel: string;
+  countdownValue: string;
 };
 
 type LibraryApi = {
@@ -47,6 +66,23 @@ type LibraryPoint = {
   lng: number;
 };
 
+type CalendarSlotVM = {
+  startIso: string;
+  endIso: string;
+  label: string;
+  statusLabel: string;
+};
+
+type CalendarDayVM = {
+  key: string;
+  dayLabel: string;
+  dateLabel: string;
+  isToday: boolean;
+  slots: CalendarSlotVM[];
+};
+
+type RoomCalendarMap = Record<string, CalendarDayVM[]>;
+
 @Component({
   selector: 'app-user-area',
   standalone: true,
@@ -62,14 +98,20 @@ export class UserAreaComponent implements AfterViewInit, OnDestroy {
   currentUserId = '';
 
   private readonly salasApiUrl = 'http://100.80.240.31:3000/salas';
+  private readonly reservasApiUrl = 'http://100.80.240.31:3000/reservas';
   private readonly librariesApiUrl = 'http://100.80.240.31:3002/libraries';
+  private readonly calendarDaysCount = 7;
 
-  private refreshSalas$ = new Subject<void>();
+  private refreshData$ = new Subject<void>();
 
   salasRaw$: Observable<Sala[]>;
   faculties$: Observable<string[]>;
   salasFiltered$: Observable<SalaVM[]>;
-  myReservations$: Observable<SalaVM[]>;
+  allReservationsRaw$: Observable<ReservaApi[]>;
+  roomCalendarMap$: Observable<RoomCalendarMap>;
+  myReservationsRaw$: Observable<ReservaApi[]>;
+  myReservations$: Observable<ReservaVM[]>;
+  hasUpcomingReservation$: Observable<boolean>;
   libraryAvailableRooms$: Observable<SalaVM[]>;
 
   search = '';
@@ -111,18 +153,43 @@ export class UserAreaComponent implements AfterViewInit, OnDestroy {
     const jwtUser = this.auth.getUser();
     this.currentUserId = ((jwtUser as any)?.sub as string) || '';
 
-    this.userName$ = this.http.get<any>(`http://100.80.240.31:3001/users/${this.currentUserId}`).pipe(
-      map((u) => `${u.firstName} ${u.lastName}`.trim()),
-      shareReplay(1)
-    );
+    this.userName$ = this.http
+      .get<any>(`http://100.80.240.31:3001/users/${this.currentUserId}`)
+      .pipe(
+        map((u) => `${u.firstName} ${u.lastName}`.trim()),
+        shareReplay(1)
+      );
 
     this.userName$.subscribe((name) => {
       this.currentUserFullName = name;
     });
 
-    this.salasRaw$ = this.refreshSalas$.pipe(
-      startWith(void 0),
+    const refreshTrigger$ = merge(this.refreshData$, interval(30000)).pipe(startWith(0));
+    const tick$ = interval(1000).pipe(startWith(0));
+
+    this.salasRaw$ = refreshTrigger$.pipe(
       switchMap(() => this.http.get<Sala[]>(this.salasApiUrl)),
+      shareReplay(1)
+    );
+
+    this.allReservationsRaw$ = refreshTrigger$.pipe(
+      switchMap(() => this.http.get<ReservaApi[]>(this.reservasApiUrl)),
+      map((reservas) => this.filterCalendarReservations(reservas)),
+      shareReplay(1)
+    );
+
+    this.roomCalendarMap$ = this.allReservationsRaw$.pipe(
+      map((reservas) => this.buildRoomCalendarMap(reservas)),
+      shareReplay(1)
+    );
+
+    this.myReservationsRaw$ = refreshTrigger$.pipe(
+      switchMap(() => {
+        if (!this.currentUserId) return of([]);
+        return this.http.get<ReservaApi[]>(
+          `${this.reservasApiUrl}/user/${this.currentUserId}/upcoming`
+        );
+      }),
       shareReplay(1)
     );
 
@@ -134,8 +201,6 @@ export class UserAreaComponent implements AfterViewInit, OnDestroy {
       ),
       shareReplay(1)
     );
-
-    const tick$ = interval(1000).pipe(startWith(0));
 
     this.salasFiltered$ = combineLatest([this.salasRaw$, this.search$, tick$]).pipe(
       map(([salas, term]) => {
@@ -153,27 +218,23 @@ export class UserAreaComponent implements AfterViewInit, OnDestroy {
       })
     );
 
-    this.myReservations$ = combineLatest([this.salasRaw$, tick$]).pipe(
-      map(([salas]) => {
-        const mine = salas.filter((s) => {
-          const reservedByMe =
-            !!this.currentUserId &&
-            (s.ultimoReservadoPorId || '').trim() === this.currentUserId;
+    this.myReservations$ = combineLatest([this.myReservationsRaw$, tick$]).pipe(
+      map(([reservas]) =>
+        reservas
+          .filter((r) => new Date(r.horaSalida as any).getTime() > Date.now())
+          .map((r) => this.toReservaVM(r))
+          .sort(
+            (a, b) =>
+              new Date(a.horaEntrada as any).getTime() -
+              new Date(b.horaEntrada as any).getTime()
+          )
+      ),
+      shareReplay(1)
+    );
 
-          const stillActive =
-            !!s.horaSalida && new Date(s.horaSalida as any).getTime() > Date.now();
-
-          return reservedByMe && stillActive;
-        });
-
-        return mine
-          .map((s) => this.toSalaVM(s))
-          .sort((a, b) => {
-            const aTime = a.horaSalida ? new Date(a.horaSalida as any).getTime() : 0;
-            const bTime = b.horaSalida ? new Date(b.horaSalida as any).getTime() : 0;
-            return aTime - bTime;
-          });
-      })
+    this.hasUpcomingReservation$ = this.myReservations$.pipe(
+      map((reservations) => reservations.length > 0),
+      shareReplay(1)
     );
 
     this.libraryAvailableRooms$ = combineLatest([this.salasRaw$, this.selectedLibrary$, tick$]).pipe(
@@ -192,12 +253,12 @@ export class UserAreaComponent implements AfterViewInit, OnDestroy {
   }
 
   async ngAfterViewInit(): Promise<void> {
-  if (this.viewMode === 'map') {
-    await this.initMap();
-    this.loadLibrariesFromApi();
-    this.cdr.detectChanges();
+    if (this.viewMode === 'map') {
+      await this.initMap();
+      this.loadLibrariesFromApi();
+      this.cdr.detectChanges();
+    }
   }
-}
 
   ngOnDestroy(): void {
     if (this.map) {
@@ -205,33 +266,172 @@ export class UserAreaComponent implements AfterViewInit, OnDestroy {
       this.map = null;
       this.markersLayer = null;
     }
+
+    this.refreshData$.complete();
   }
 
   private toSalaVM(s: Sala): SalaVM {
     const now = Date.now();
-    const hasFutureEnd = !!s.horaSalida && new Date(s.horaSalida as any).getTime() > now;
+    const hasFutureEnd =
+      !!s.horaSalida && new Date(s.horaSalida as any).getTime() > now;
     const isFree = (s.personasDentro ?? 0) === 0 || !hasFutureEnd;
 
     let timeToFreeText: string | null = null;
 
     if (!isFree && s.horaSalida) {
-      const end = new Date(s.horaSalida as any).getTime();
-      const diff = end - now;
-
-      if (Number.isFinite(diff) && diff > 0) {
-        const totalSeconds = Math.floor(diff / 1000);
-        const hours = Math.floor(totalSeconds / 3600);
-        const minutes = Math.floor((totalSeconds % 3600) / 60);
-        const seconds = totalSeconds % 60;
-
-        timeToFreeText =
-          hours > 0 ? `${hours}h ${minutes}m ${seconds}s` : `${minutes}m ${seconds}s`;
-      } else {
-        timeToFreeText = '0m 0s';
-      }
+      const diff = new Date(s.horaSalida as any).getTime() - now;
+      timeToFreeText = this.formatRemaining(diff);
     }
 
     return { ...s, isFree, timeToFreeText };
+  }
+
+  private toReservaVM(r: ReservaApi): ReservaVM {
+    const now = Date.now();
+    const start = new Date(r.horaEntrada as any).getTime();
+    const end = new Date(r.horaSalida as any).getTime();
+
+    const isActiveNow = start <= now && end > now;
+
+    return {
+      ...r,
+      isActiveNow,
+      statusLabel: isActiveNow ? 'Active' : 'Upcoming',
+      countdownLabel: isActiveNow ? 'Ends in' : 'Starts',
+      countdownValue: isActiveNow
+        ? this.formatRemaining(end - now)
+        : new Date(r.horaEntrada as any).toLocaleString(),
+    };
+  }
+
+  getCalendarDaysForRoom(roomId: string | undefined, roomCalendarMap: RoomCalendarMap): CalendarDayVM[] {
+  if (roomId && roomCalendarMap[roomId]) {
+    return roomCalendarMap[roomId];
+  }
+
+  return roomCalendarMap['__empty__'] || [];
+}
+
+  private filterCalendarReservations(reservas: ReservaApi[]): ReservaApi[] {
+    const windowStart = this.startOfDay(new Date()).getTime();
+    const windowEnd = this.addDays(this.startOfDay(new Date()), this.calendarDaysCount).getTime();
+
+    return reservas.filter((r) => {
+      const start = new Date(r.horaEntrada as any).getTime();
+      const end = new Date(r.horaSalida as any).getTime();
+
+      return Number.isFinite(start) && Number.isFinite(end) && end > windowStart && start < windowEnd;
+    });
+  }
+
+  private buildRoomCalendarMap(reservas: ReservaApi[]): RoomCalendarMap {
+    const skeleton = this.createCalendarSkeleton();
+    const roomMap: RoomCalendarMap = {
+      __empty__: skeleton,
+    };
+
+    for (const reserva of reservas) {
+      const roomId = (reserva.salaId || '').trim();
+      if (!roomId) continue;
+
+      const start = new Date(reserva.horaEntrada as any);
+      const end = new Date(reserva.horaSalida as any);
+
+      if (isNaN(start.getTime()) || isNaN(end.getTime())) continue;
+
+      if (!roomMap[roomId]) {
+        roomMap[roomId] = this.cloneCalendarSkeleton(skeleton);
+      }
+
+      for (const day of roomMap[roomId]) {
+        const dayStart = this.parseDayKey(day.key);
+        const dayEnd = this.addDays(dayStart, 1);
+
+        if (start < dayEnd && end > dayStart) {
+          const slotStart = start > dayStart ? start : dayStart;
+          const slotEnd = end < dayEnd ? end : dayEnd;
+
+          day.slots.push({
+            startIso: slotStart.toISOString(),
+            endIso: slotEnd.toISOString(),
+            label: `${this.formatHourMinute(slotStart)} – ${this.formatHourMinute(slotEnd)}`,
+            statusLabel: 'Occupied',
+          });
+        }
+      }
+    }
+
+    for (const roomId of Object.keys(roomMap)) {
+      roomMap[roomId].forEach((day) => {
+        day.slots.sort((a, b) => a.startIso.localeCompare(b.startIso));
+      });
+    }
+
+    return roomMap;
+  }
+
+  private createCalendarSkeleton(): CalendarDayVM[] {
+    const today = this.startOfDay(new Date());
+    const todayKey = this.toDayKey(today);
+
+    return Array.from({ length: this.calendarDaysCount }, (_, index) => {
+      const date = this.addDays(today, index);
+
+      return {
+        key: this.toDayKey(date),
+        dayLabel: date.toLocaleDateString('en-GB', { weekday: 'short' }),
+        dateLabel: date.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }),
+        isToday: this.toDayKey(date) === todayKey,
+        slots: [],
+      };
+    });
+  }
+
+  private cloneCalendarSkeleton(days: CalendarDayVM[]): CalendarDayVM[] {
+    return days.map((day) => ({
+      ...day,
+      slots: [],
+    }));
+  }
+
+  private startOfDay(date: Date): Date {
+    const result = new Date(date);
+    result.setHours(0, 0, 0, 0);
+    return result;
+  }
+
+  private addDays(date: Date, days: number): Date {
+    const result = new Date(date);
+    result.setDate(result.getDate() + days);
+    return result;
+  }
+
+  private toDayKey(date: Date): string {
+    const pad = (n: number) => String(n).padStart(2, '0');
+    return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+  }
+
+  private parseDayKey(key: string): Date {
+    const [year, month, day] = key.split('-').map(Number);
+    return new Date(year, month - 1, day, 0, 0, 0, 0);
+  }
+
+  private formatHourMinute(date: Date): string {
+    const pad = (n: number) => String(n).padStart(2, '0');
+    return `${pad(date.getHours())}:${pad(date.getMinutes())}`;
+  }
+
+  private formatRemaining(diff: number): string {
+    if (!Number.isFinite(diff) || diff <= 0) return '0m 0s';
+
+    const totalSeconds = Math.floor(diff / 1000);
+    const hours = Math.floor(totalSeconds / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    const seconds = totalSeconds % 60;
+
+    return hours > 0
+      ? `${hours}h ${minutes}m ${seconds}s`
+      : `${minutes}m ${seconds}s`;
   }
 
   onSearchChange(value: string) {
@@ -257,8 +457,8 @@ export class UserAreaComponent implements AfterViewInit, OnDestroy {
     this.reservationEnd = '';
   }
 
-  confirmReservation(sala: SalaVM) {
-    if (!sala._id) {
+  confirmReservation() {
+    if (!this.reserveOpenForId) {
       alert('Room id not found');
       return;
     }
@@ -281,35 +481,40 @@ export class UserAreaComponent implements AfterViewInit, OnDestroy {
       return;
     }
 
+    if (endDate.getTime() - startDate.getTime() > 3 * 60 * 60 * 1000) {
+      alert('The maximum reservation time is 3 hours');
+      return;
+    }
+
     this.isSavingReservation = true;
 
     const body = {
-      personasDentro: 1,
+      salaId: this.reserveOpenForId,
+      userId: this.currentUserId || '',
+      userName: this.currentUserFullName || 'Usuario desconocido',
       horaEntrada: startDate.toISOString(),
       horaSalida: endDate.toISOString(),
-      ultimoReservadoPor: this.currentUserFullName || 'Usuario desconocido',
-      ultimoReservadoPorId: this.currentUserId || '',
     };
 
-    this.http.put(`${this.salasApiUrl}/${sala._id}`, body).subscribe({
+    this.http.post(this.reservasApiUrl, body).subscribe({
       next: () => {
         this.isSavingReservation = false;
         this.cancelReservation();
-        this.refreshSalas$.next();
+        this.refreshData$.next();
       },
-      error: () => {
+      error: (error) => {
         this.isSavingReservation = false;
-        alert('The reservation could not be saved');
+        alert(this.getErrorMessage(error, 'The reservation could not be saved'));
       },
     });
   }
 
-  openEditReservationForm(sala: SalaVM) {
-    if (!sala._id) return;
+  openEditReservationForm(reserva: ReservaVM) {
+    if (!reserva._id) return;
 
-    this.editReservationOpenForId = sala._id;
-    this.editReservationEnd = sala.horaSalida
-      ? this.toDatetimeLocalValue(new Date(sala.horaSalida as any))
+    this.editReservationOpenForId = reserva._id;
+    this.editReservationEnd = reserva.horaSalida
+      ? this.toDatetimeLocalValue(new Date(reserva.horaSalida as any))
       : '';
   }
 
@@ -318,9 +523,9 @@ export class UserAreaComponent implements AfterViewInit, OnDestroy {
     this.editReservationEnd = '';
   }
 
-  saveReservationEdit(sala: SalaVM) {
-    if (!sala._id) {
-      alert('Room id not found');
+  saveReservationEdit(reserva: ReservaVM) {
+    if (!reserva._id) {
+      alert('Reservation id not found');
       return;
     }
 
@@ -329,8 +534,8 @@ export class UserAreaComponent implements AfterViewInit, OnDestroy {
       return;
     }
 
-    const currentStart = new Date(sala.horaEntrada as any);
-    const currentEnd = sala.horaSalida ? new Date(sala.horaSalida as any) : null;
+    const currentStart = new Date(reserva.horaEntrada as any);
+    const currentEnd = new Date(reserva.horaSalida as any);
     const newEnd = new Date(this.editReservationEnd);
 
     if (isNaN(newEnd.getTime())) {
@@ -343,32 +548,48 @@ export class UserAreaComponent implements AfterViewInit, OnDestroy {
       return;
     }
 
-    if (currentEnd && newEnd <= currentEnd) {
+    if (newEnd <= currentEnd) {
       alert('The new exit time must be later than the current one');
+      return;
+    }
+
+    if (newEnd.getTime() - currentStart.getTime() > 3 * 60 * 60 * 1000) {
+      alert('The maximum reservation time is 3 hours');
       return;
     }
 
     this.isSavingReservationEdit = true;
 
     const body = {
-      personasDentro: 1,
-      horaEntrada: new Date(sala.horaEntrada as any).toISOString(),
+      userId: this.currentUserId,
       horaSalida: newEnd.toISOString(),
-      ultimoReservadoPor: sala.ultimoReservadoPor || this.currentUserFullName || 'Usuario desconocido',
-      ultimoReservadoPorId: sala.ultimoReservadoPorId || this.currentUserId || '',
     };
 
-    this.http.put(`${this.salasApiUrl}/${sala._id}`, body).subscribe({
+    this.http.patch(`${this.reservasApiUrl}/${reserva._id}`, body).subscribe({
       next: () => {
         this.isSavingReservationEdit = false;
         this.cancelEditReservation();
-        this.refreshSalas$.next();
+        this.refreshData$.next();
       },
-      error: () => {
+      error: (error) => {
         this.isSavingReservationEdit = false;
-        alert('The reservation could not be updated');
+        alert(this.getErrorMessage(error, 'The reservation could not be updated'));
       },
     });
+  }
+
+  private getErrorMessage(error: any, fallback: string): string {
+    const message = error?.error?.message;
+
+    if (Array.isArray(message) && message.length > 0) {
+      return message.join(', ');
+    }
+
+    if (typeof message === 'string' && message.trim()) {
+      return message;
+    }
+
+    return fallback;
   }
 
   private toDatetimeLocalValue(date: Date): string {

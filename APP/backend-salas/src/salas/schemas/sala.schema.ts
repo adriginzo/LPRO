@@ -6,28 +6,28 @@ export type SalaDocument = Sala & Document;
 @Schema()
 export class Sala {
   @Prop({ required: true })
-  facultad: String;
+  facultad: string;
 
   @Prop({ required: true })
   numeroSala: number;
 
-  @Prop({ required: true })
+  @Prop({ default: 0 })
   personasDentro: number;
 
-  @Prop({ required: true })
+  @Prop({ default: 0 })
   ruidoDb: number;
 
-  @Prop({ required: true })
-  horaEntrada: Date;
+  @Prop()
+  horaEntrada?: Date;
 
   @Prop()
-  horaSalida: Date;
+  horaSalida?: Date;
 
   @Prop()
-  ultimoReservadoPor: string;
+  ultimoReservadoPor?: string;
 
   @Prop()
-  ultimoReservadoPorId: string;
+  ultimoReservadoPorId?: string;
 }
 
 export const SalaSchema = SchemaFactory.createForClass(Sala);
