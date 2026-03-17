@@ -126,6 +126,11 @@ export class UserAreaComponent implements AfterViewInit, OnDestroy {
   editReservationEnd = '';
   isSavingReservationEdit = false;
 
+  isDeletingReservation = false;
+
+  calendarOpenForRoomId: string | null = null;
+  calendarOpenRoomTitle = '';
+
   viewMode: 'map' | 'rooms' = 'map';
 
   selectedLibraryName = '';
@@ -305,11 +310,52 @@ export class UserAreaComponent implements AfterViewInit, OnDestroy {
   }
 
   getCalendarDaysForRoom(roomId: string | undefined, roomCalendarMap: RoomCalendarMap): CalendarDayVM[] {
-  if (roomId && roomCalendarMap[roomId]) {
-    return roomCalendarMap[roomId];
+    if (roomId && roomCalendarMap[roomId]) {
+      return roomCalendarMap[roomId];
+    }
+
+    return roomCalendarMap['__empty__'] || [];
   }
 
-  return roomCalendarMap['__empty__'] || [];
+  openRoomCalendar(sala: SalaVM) {
+    this.calendarOpenForRoomId = sala._id || null;
+    this.calendarOpenRoomTitle = `${sala.facultad} · Room ${sala.numeroSala}`;
+  }
+
+  closeRoomCalendar() {
+    this.calendarOpenForRoomId = null;
+    this.calendarOpenRoomTitle = '';
+  }
+
+  deleteReservation(reserva: ReservaVM): void {
+  const reservationId = reserva?._id?.trim();
+
+  if (!reservationId) {
+    alert('Reservation id not found');
+    return;
+  }
+
+  if (this.isDeletingReservation) {
+    return;
+  }
+
+  this.isDeletingReservation = true;
+
+  this.http.delete<void>(`${this.reservasApiUrl}/${reservationId}`).subscribe({
+    next: () => {
+      this.isDeletingReservation = false;
+
+      if (this.editReservationOpenForId === reservationId) {
+        this.cancelEditReservation();
+      }
+
+      this.refreshData$.next();
+    },
+    error: (error) => {
+      this.isDeletingReservation = false;
+      alert(this.getErrorMessage(error, 'The reservation could not be deleted'));
+    },
+  });
 }
 
   private filterCalendarReservations(reservas: ReservaApi[]): ReservaApi[] {

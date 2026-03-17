@@ -154,77 +154,39 @@
         </div>
 
         <div class="ua-grid" *ngIf="libraryAvailableRooms$ | async as libraryRooms">
-          <ng-container *ngIf="roomCalendarMap$ | async as roomCalendarMap">
-            <div class="ua-room" *ngFor="let s of libraryRooms">
-              <div class="ua-roomTop">
-                <div>
-                  <div class="ua-roomTitle">{{ s.facultad }}</div>
-                  <div class="ua-roomMeta">Room {{ s.numeroSala }}</div>
-                </div>
-
-                <span class="ua-badge ua-badge--free">Free</span>
+          <div class="ua-room" *ngFor="let s of libraryRooms">
+            <div class="ua-roomTop">
+              <div>
+                <div class="ua-roomTitle">{{ s.facultad }}</div>
+                <div class="ua-roomMeta">Room {{ s.numeroSala }}</div>
               </div>
 
-              <div class="ua-freeActions">
-                <button
-                  class="ua-reserveBtn"
-                  type="button"
-                  (click)="openReserveForm(s)"
-                  [disabled]="(hasUpcomingReservation$ | async) === true"
-                >
-                  {{ (hasUpcomingReservation$ | async) ? 'You already have a reservation' : 'Reserve' }}
-                </button>
-              </div>
-
-              <div class="ua-roomCalendar">
-                <div class="ua-roomCalendarHeader">
-                  <div>
-                    <div class="ua-roomCalendarTitle">Calendar</div>
-                    <div class="ua-roomCalendarSubtitle">Next 7 days</div>
-                  </div>
-
-                  <div class="ua-calendarLegend">
-                    <span class="ua-calendarLegendItem">
-                      <span class="ua-calendarLegendDot ua-calendarLegendDot--busy"></span>
-                      Occupied
-                    </span>
-                    <span class="ua-calendarLegendItem">
-                      <span class="ua-calendarLegendDot ua-calendarLegendDot--free"></span>
-                      Free
-                    </span>
-                  </div>
-                </div>
-
-                <div class="ua-roomCalendarGrid">
-                  <div
-                    class="ua-calendarDay"
-                    *ngFor="let day of getCalendarDaysForRoom(s._id, roomCalendarMap)"
-                    [class.ua-calendarDay--today]="day.isToday"
-                  >
-                    <div class="ua-calendarDayTop">
-                      <div class="ua-calendarDayLabel">{{ day.dayLabel }}</div>
-                      <div class="ua-calendarDayDate">{{ day.dateLabel }}</div>
-                    </div>
-
-                    <div class="ua-calendarSlots" *ngIf="day.slots.length > 0; else freeDayTplLibrary">
-                      <div class="ua-calendarSlot" *ngFor="let slot of day.slots">
-                        <span class="ua-calendarSlotStatus">{{ slot.statusLabel }}</span>
-                        <span class="ua-calendarSlotTime">{{ slot.label }}</span>
-                      </div>
-                    </div>
-
-                    <ng-template #freeDayTplLibrary>
-                      <div class="ua-calendarFreeDay">Free all day</div>
-                    </ng-template>
-                  </div>
-                </div>
-              </div>
+              <span class="ua-badge ua-badge--free">Free</span>
             </div>
 
-            <div class="ua-empty" *ngIf="libraryRooms.length === 0">
-              There are no free rooms right now in {{ selectedLibraryName }}.
+            <div class="ua-roomActionsStack">
+              <button
+                class="ua-reserveBtn"
+                type="button"
+                (click)="openReserveForm(s)"
+                [disabled]="(hasUpcomingReservation$ | async) === true"
+              >
+                {{ (hasUpcomingReservation$ | async) ? 'You already have a reservation' : 'Reserve' }}
+              </button>
+
+              <button
+                class="btn-ghost ua-calendarBtn"
+                type="button"
+                (click)="openRoomCalendar(s)"
+              >
+                Calendar
+              </button>
             </div>
-          </ng-container>
+          </div>
+
+          <div class="ua-empty" *ngIf="libraryRooms.length === 0">
+            There are no free rooms right now in {{ selectedLibraryName }}.
+          </div>
         </div>
       </div>
 
@@ -262,6 +224,15 @@
             <div class="ua-myReservationActions">
               <button class="btn-primary" type="button" (click)="openEditReservationForm(r)">
                 Modify reservation
+              </button>
+
+              <button
+                class="ua-deleteReservationBtn"
+                type="button"
+                (click)="deleteReservation(r)"
+                [disabled]="isDeletingReservation"
+              >
+                {{ isDeletingReservation ? 'Deleting...' : 'Delete reservation' }}
               </button>
             </div>
           </div>
@@ -307,84 +278,47 @@
       </div>
 
       <div class="ua-grid" *ngIf="salasFiltered$ | async as salas; else loading">
-        <ng-container *ngIf="roomCalendarMap$ | async as roomCalendarMap">
-          <div class="ua-room" *ngFor="let s of salas">
-            <div class="ua-roomTop">
-              <div>
-                <div class="ua-roomTitle">{{ s.facultad }}</div>
-                <div class="ua-roomMeta">Room {{ s.numeroSala }}</div>
-              </div>
-
-              <span class="ua-badge" [class.ua-badge--free]="s.isFree" [class.ua-badge--busy]="!s.isFree">
-                {{ s.isFree ? 'Free' : 'Occupied' }}
-              </span>
+        <div class="ua-room" *ngFor="let s of salas">
+          <div class="ua-roomTop">
+            <div>
+              <div class="ua-roomTitle">{{ s.facultad }}</div>
+              <div class="ua-roomMeta">Room {{ s.numeroSala }}</div>
             </div>
 
-            <div *ngIf="!s.isFree" class="ua-countdown">
-              <span class="ua-countdownLabel">Available in</span>
-              <span class="ua-countdownValue">{{ s.timeToFreeText ? s.timeToFreeText : '—' }}</span>
-            </div>
-
-            <div *ngIf="s.isFree" class="ua-freeActions">
-              <button
-                class="ua-reserveBtn"
-                type="button"
-                (click)="openReserveForm(s)"
-                [disabled]="(hasUpcomingReservation$ | async) === true"
-              >
-                {{ (hasUpcomingReservation$ | async) ? 'You already have a reservation' : 'Reserve' }}
-              </button>
-            </div>
-
-            <div class="ua-roomCalendar">
-              <div class="ua-roomCalendarHeader">
-                <div>
-                  <div class="ua-roomCalendarTitle">Calendar</div>
-                  <div class="ua-roomCalendarSubtitle">Next 7 days</div>
-                </div>
-
-                <div class="ua-calendarLegend">
-                  <span class="ua-calendarLegendItem">
-                    <span class="ua-calendarLegendDot ua-calendarLegendDot--busy"></span>
-                    Occupied
-                  </span>
-                  <span class="ua-calendarLegendItem">
-                    <span class="ua-calendarLegendDot ua-calendarLegendDot--free"></span>
-                    Free
-                  </span>
-                </div>
-              </div>
-
-              <div class="ua-roomCalendarGrid">
-                <div
-                  class="ua-calendarDay"
-                  *ngFor="let day of getCalendarDaysForRoom(s._id, roomCalendarMap)"
-                  [class.ua-calendarDay--today]="day.isToday"
-                >
-                  <div class="ua-calendarDayTop">
-                    <div class="ua-calendarDayLabel">{{ day.dayLabel }}</div>
-                    <div class="ua-calendarDayDate">{{ day.dateLabel }}</div>
-                  </div>
-
-                  <div class="ua-calendarSlots" *ngIf="day.slots.length > 0; else freeDayTpl">
-                    <div class="ua-calendarSlot" *ngFor="let slot of day.slots">
-                      <span class="ua-calendarSlotStatus">{{ slot.statusLabel }}</span>
-                      <span class="ua-calendarSlotTime">{{ slot.label }}</span>
-                    </div>
-                  </div>
-
-                  <ng-template #freeDayTpl>
-                    <div class="ua-calendarFreeDay">Free all day</div>
-                  </ng-template>
-                </div>
-              </div>
-            </div>
+            <span class="ua-badge" [class.ua-badge--free]="s.isFree" [class.ua-badge--busy]="!s.isFree">
+              {{ s.isFree ? 'Free' : 'Occupied' }}
+            </span>
           </div>
 
-          <div class="ua-empty" *ngIf="salas.length === 0">
-            No rooms match your search.
+          <div *ngIf="!s.isFree" class="ua-countdown">
+            <span class="ua-countdownLabel">Available in</span>
+            <span class="ua-countdownValue">{{ s.timeToFreeText ? s.timeToFreeText : '—' }}</span>
           </div>
-        </ng-container>
+
+          <div class="ua-roomActionsStack">
+            <button
+              *ngIf="s.isFree"
+              class="ua-reserveBtn"
+              type="button"
+              (click)="openReserveForm(s)"
+              [disabled]="(hasUpcomingReservation$ | async) === true"
+            >
+              {{ (hasUpcomingReservation$ | async) ? 'You already have a reservation' : 'Reserve' }}
+            </button>
+
+            <button
+              class="btn-ghost ua-calendarBtn"
+              type="button"
+              (click)="openRoomCalendar(s)"
+            >
+              Calendar
+            </button>
+          </div>
+        </div>
+
+        <div class="ua-empty" *ngIf="salas.length === 0">
+          No rooms match your search.
+        </div>
       </div>
 
       <ng-template #loading>
@@ -500,6 +434,63 @@
             </button>
           </div>
         </ng-container>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="ua-modalOverlay" *ngIf="calendarOpenForRoomId" (click)="closeRoomCalendar()">
+  <div class="ua-modal ua-modal--calendar" (click)="$event.stopPropagation()">
+    <div class="ua-modalHeader">
+      <div>
+        <h3 class="ua-modalTitle">Room calendar</h3>
+        <p class="ua-modalSubtitle">{{ calendarOpenRoomTitle }} · Next 7 days</p>
+      </div>
+
+      <button class="ua-closeBtn" type="button" (click)="closeRoomCalendar()">×</button>
+    </div>
+
+    <div class="ua-roomCalendar" *ngIf="roomCalendarMap$ | async as roomCalendarMap">
+      <div class="ua-roomCalendarHeader">
+        <div>
+          <div class="ua-roomCalendarTitle">Calendar</div>
+          <div class="ua-roomCalendarSubtitle">Occupied and free time slots</div>
+        </div>
+
+        <div class="ua-calendarLegend">
+          <span class="ua-calendarLegendItem">
+            <span class="ua-calendarLegendDot ua-calendarLegendDot--busy"></span>
+            Occupied
+          </span>
+          <span class="ua-calendarLegendItem">
+            <span class="ua-calendarLegendDot ua-calendarLegendDot--free"></span>
+            Free
+          </span>
+        </div>
+      </div>
+
+      <div class="ua-roomCalendarGrid ua-roomCalendarGrid--modal">
+        <div
+          class="ua-calendarDay"
+          *ngFor="let day of getCalendarDaysForRoom(calendarOpenForRoomId || undefined, roomCalendarMap)"
+          [class.ua-calendarDay--today]="day.isToday"
+        >
+          <div class="ua-calendarDayTop">
+            <div class="ua-calendarDayLabel">{{ day.dayLabel }}</div>
+            <div class="ua-calendarDayDate">{{ day.dateLabel }}</div>
+          </div>
+
+          <div class="ua-calendarSlots" *ngIf="day.slots.length > 0; else freeDayTplModal">
+            <div class="ua-calendarSlot" *ngFor="let slot of day.slots">
+              <span class="ua-calendarSlotStatus">{{ slot.statusLabel }}</span>
+              <span class="ua-calendarSlotTime">{{ slot.label }}</span>
+            </div>
+          </div>
+
+          <ng-template #freeDayTplModal>
+            <div class="ua-calendarFreeDay">Free all day</div>
+          </ng-template>
+        </div>
       </div>
     </div>
   </div>

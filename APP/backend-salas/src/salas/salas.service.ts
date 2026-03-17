@@ -87,7 +87,6 @@ export class SalasService {
   private withCurrentReservation(sala: any, reserva?: any): Sala {
     return {
       ...sala,
-      personasDentro: reserva ? 1 : 0,
       horaEntrada: reserva?.horaEntrada,
       horaSalida: reserva?.horaSalida,
       ultimoReservadoPor: reserva?.userName || '',

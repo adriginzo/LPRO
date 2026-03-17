@@ -368,7 +368,8 @@
 
 .btn-primary:disabled,
 .btn-ghost:disabled,
-.ua-reserveBtn:disabled {
+.ua-reserveBtn:disabled,
+.ua-deleteReservationBtn:disabled {
   opacity: 0.65;
   cursor: not-allowed;
   transform: none;
@@ -569,6 +570,20 @@
   font-size: 0.98rem;
 }
 
+.ua-roomActionsStack {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 6px;
+}
+
+.ua-calendarBtn {
+  width: 100%;
+  border-radius: 16px;
+  padding: 14px 24px;
+  font-size: 0.98rem;
+}
+
 .ua-roomCalendar {
   display: grid;
   gap: 14px;
@@ -638,6 +653,10 @@
   overflow-x: auto;
   padding-bottom: 4px;
   scrollbar-width: thin;
+}
+
+.ua-roomCalendarGrid--modal {
+  grid-auto-columns: minmax(140px, 1fr);
 }
 
 .ua-calendarDay {
@@ -742,6 +761,29 @@
 .ua-myReservationActions {
   display: flex;
   justify-content: flex-end;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.ua-deleteReservationBtn {
+  appearance: none;
+  border: none;
+  border-radius: 14px;
+  padding: 12px 18px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  background: rgba(239, 68, 68, 0.10);
+  color: #b91c1c;
+  transition:
+    transform 0.18s ease,
+    background 0.18s ease,
+    box-shadow 0.18s ease;
+}
+
+.ua-deleteReservationBtn:hover {
+  background: rgba(239, 68, 68, 0.16);
+  transform: translateY(-1px);
 }
 
 .ua-inlineReservation {
@@ -785,6 +827,10 @@
     0 6px 18px rgba(15, 23, 42, 0.08);
   padding: 24px;
   animation: scaleIn 0.18s ease;
+}
+
+.ua-modal--calendar {
+  max-width: 980px;
 }
 
 .ua-modalHeader {
@@ -921,7 +967,8 @@
   .ua-topHeader,
   .ua-sectionHeader,
   .ua-libraryItemActions,
-  .ua-roomCalendarHeader {
+  .ua-roomCalendarHeader,
+  .ua-myReservationActions {
     flex-direction: column;
     align-items: stretch;
   }

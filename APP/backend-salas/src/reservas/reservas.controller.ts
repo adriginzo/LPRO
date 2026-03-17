@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Patch, Post } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Patch, Post } from '@nestjs/common';
 import { ReservasService } from './reservas.service';
 import { Reserva } from './schemas/reserva.schema';
 
@@ -27,5 +27,10 @@ export class ReservasController {
     @Body() reservaData: Partial<Reserva>,
   ): Promise<Reserva> {
     return this.reservasService.update(id, reservaData);
+  }
+
+  @Delete(':id')
+  remove(@Param('id') id: string): Promise<void> {
+    return this.reservasService.remove(id);
   }
 }

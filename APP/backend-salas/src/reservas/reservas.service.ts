@@ -101,6 +101,13 @@ export class ReservasService {
     return reserva.save();
   }
 
+  async remove(id: string): Promise<void> {
+    const deleted = await this.reservaModel.findByIdAndDelete(id).exec();
+    if (!deleted) {
+      throw new NotFoundException('Reserva no encontrada');
+    }
+  }
+
   private validateWindow(
     start: Date,
     end: Date,
