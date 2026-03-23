@@ -1,0 +1,68 @@
+<div class="auth-page">
+  <div class="auth-container">
+    <div class="form-container sign-in">
+      <form class="auth-form" (ngSubmit)="login()">
+        <span class="auth-badge">Restricted access</span>
+        <h1>Librarian Log In</h1>
+        <p class="auth-subtitle">
+          Sign in with a librarian account to access the live monitoring panel.
+        </p>
+
+        <input
+          type="email"
+          [(ngModel)]="email"
+          name="email"
+          placeholder="Email"
+          required
+          autocomplete="email"
+        />
+
+        <input
+          type="password"
+          [(ngModel)]="password"
+          name="password"
+          placeholder="Password"
+          required
+          autocomplete="current-password"
+        />
+
+        <div class="auth-error" *ngIf="errorMessage">
+          {{ errorMessage }}
+        </div>
+
+        <button type="submit" class="btn-primary" [disabled]="isSubmitting">
+          Access monitor
+        </button>
+      </form>
+    </div>
+
+    <div class="toggle-container">
+      <div class="toggle">
+        <div class="toggle-panel toggle-panel--static">
+          <h1>Library control center</h1>
+          <p>
+            This access is reserved for staff accounts with role
+            <strong>librarian</strong>.
+          </p>
+
+          <div class="feature-list">
+            <div class="feature-item">
+              <span class="feature-item__dot"></span>
+              <span>Real-time room monitoring</span>
+            </div>
+
+            <div class="feature-item">
+              <span class="feature-item__dot"></span>
+              <span>Noise alerts and occupancy overview</span>
+            </div>
+
+            <div class="feature-item">
+              <span class="feature-item__dot"></span>
+              <span>Professional monitoring dashboard</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
