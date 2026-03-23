@@ -26,6 +26,11 @@ export class SalasController {
     return this.salasService.updatePersonas(id, personasDentro);
   }
 
+  @Patch(':id/decibelios')
+  updateDB(@Param('id') id: string, @Body('ruidoDb') ruidoDb: number): Promise<Sala> {
+    return this.salasService.updateDB(id, ruidoDb);
+  }
+
   @Put(':id')
   update(@Param('id') id: string, @Body() salaData: Partial<Sala>): Promise<Sala> {
     return this.salasService.update(id, salaData);

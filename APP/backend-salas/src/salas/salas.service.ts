@@ -66,6 +66,17 @@ export class SalasService {
     return sala;
   }
 
+  async updateDB(id: string, ruidoDb: number): Promise<Sala> {
+    const sala = await this.salaModel.findByIdAndUpdate(
+      id,
+      { ruidoDb},
+      { new: true },
+    );
+
+    if (!sala) throw new NotFoundException('Sala no encontrada');
+    return sala;
+  }
+
   async update(id: string, salaData: Partial<Sala>): Promise<Sala> {
     const sala = await this.salaModel.findByIdAndUpdate(id, salaData, {
       new: true,
