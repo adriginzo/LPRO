@@ -1,5 +1,6 @@
 import { Component } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { Router } from '@angular/router';
 import {
   catchError,
   defer,
@@ -11,6 +12,7 @@ import {
   shareReplay
 } from 'rxjs';
 import { SalasService, Sala } from '../../services/salas';
+import { LibrarianAuthService } from '../../services/librarian-auth';
 
 type NoiseLevel = 'good' | 'warning' | 'danger';
 
@@ -64,17 +66,39 @@ const FLASH_DURATION_MS = 900;
   styleUrls: ['./librarian-monitor.css']
 })
 export class LibrarianMonitorComponent {
+  librarianName = 'Librarian';
   salas$: Observable<SalaVM[]>;
   alerts$: Observable<NoiseAlert[]>;
   summary$: Observable<MonitorSummary>;
   lastUpdate$: Observable<Date>;
 
-  constructor(private salasService: SalasService) {
-    this.salas$ = defer(() =>
-      this.salasService.getSalas().pipe(
+  constructor(
+    private salasService: SalasService,
+    private auth: LibrarianAuthService,
+    private router: Router
+  ) {
+    const session = this.auth.getSession();
+    this.librarianName = (session?.user?.firstName ?? '').trim() || 'Librarian';
+
+    this.salas$ = defer(() => {
+      const librarianSchool = this.normalizeText(
+        this.auth.getSession()?.user?.school ?? ''
+      );
+
+      return this.salasService.getSalas().pipe(
+        map((salas) => {
+          if (!librarianSchool) {
+            return [];
+          }
+
+          return salas.filter((s) => {
+            const roomFaculty = this.normalizeText(s.facultad ?? '');
+            return roomFaculty === librarianSchool;
+          });
+        }),
         catchError(() => of([] as Sala[]))
-      )
-    ).pipe(
+      );
+    }).pipe(
       repeat({ delay: LIVE_POLL_DELAY_MS }),
       map((salas) =>
         [...salas].sort(
@@ -188,6 +212,15 @@ export class LibrarianMonitorComponent {
       map(() => new Date()),
       shareReplay({ bufferSize: 1, refCount: true })
     );
+  }
+
+  logout(): void {
+    this.auth.logout();
+    this.router.navigate(['/']);
+  }
+
+  private normalizeText(value: string): string {
+    return (value ?? '').trim().toLowerCase();
   }
 
   private getNoiseLevel(ruidoDb: number): NoiseLevel {

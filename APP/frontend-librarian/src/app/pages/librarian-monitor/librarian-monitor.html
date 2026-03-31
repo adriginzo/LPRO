@@ -2,19 +2,13 @@
   <section class="monitor-shell">
     <section class="monitor-hero">
       <div class="monitor-hero__text">
-        <div class="monitor-hero__eyebrow">LIBRARIAN MONITOR</div>
-        <h2 class="monitor-title">Study Rooms Live Monitor</h2>
-        <p class="monitor-text">
-          Real-time overview of occupancy and noise levels across all monitored libraries.
-        </p>
+        <h2 class="monitor-title">Welcome {{ librarianName }}</h2>
       </div>
 
-      <div class="monitor-live" *ngIf="lastUpdate$ | async as lastUpdate">
-        <span class="monitor-live__dot"></span>
-        <div class="monitor-live__content">
-          <span class="monitor-live__label">Live refresh</span>
-          <span class="monitor-live__time">{{ lastUpdate | date:'HH:mm:ss' }}</span>
-        </div>
+      <div class="monitor-hero__actions">
+        <button type="button" class="monitor-logout-button" (click)="logout()">
+          Log out
+        </button>
       </div>
     </section>
 

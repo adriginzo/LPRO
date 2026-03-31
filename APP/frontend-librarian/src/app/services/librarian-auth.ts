@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { map, Observable } from 'rxjs';
+import { catchError, map, Observable, of, switchMap } from 'rxjs';
 
 type LoginResponse = {
   access_token?: string;
@@ -11,7 +11,17 @@ type LoginResponse = {
     lastName?: string;
     email?: string;
     type?: string;
+    school?: string;
   };
+};
+
+type BackendUser = {
+  _id?: string;
+  firstName?: string;
+  lastName?: string;
+  email?: string;
+  type?: string;
+  school?: string;
 };
 
 export type LibrarianUser = {
@@ -20,6 +30,7 @@ export type LibrarianUser = {
   lastName?: string;
   email: string;
   type: string;
+  school?: string;
 };
 
 export type LibrarianSession = {
@@ -40,25 +51,55 @@ export class LibrarianAuthService {
     return this.http
       .post<LoginResponse>(`${this.apiUrl}/login`, { email, password })
       .pipe(
-        map((response) => {
+        switchMap((response) => {
           const token = response.access_token ?? response.token ?? '';
           const tokenPayload = token ? this.readTokenPayload(token) : null;
 
-          const user: LibrarianUser = {
-            _id: response.user?._id ?? tokenPayload?.sub ?? tokenPayload?.id ?? '',
-            firstName: response.user?.firstName ?? tokenPayload?.firstName ?? '',
-            lastName: response.user?.lastName ?? tokenPayload?.lastName ?? '',
-            email: response.user?.email ?? tokenPayload?.email ?? email,
-            type: response.user?.type ?? tokenPayload?.type ?? ''
-          };
+          const userId =
+            response.user?._id ??
+            tokenPayload?.sub ??
+            tokenPayload?.id ??
+            '';
 
-          const session: LibrarianSession = {
+          const baseSession: LibrarianSession = {
             token,
-            user
+            user: {
+              _id: userId,
+              firstName: response.user?.firstName ?? '',
+              lastName: response.user?.lastName ?? '',
+              email: response.user?.email ?? tokenPayload?.email ?? email,
+              type: response.user?.type ?? tokenPayload?.type ?? '',
+              school: response.user?.school ?? ''
+            }
           };
 
-          localStorage.setItem(this.storageKey, JSON.stringify(session));
-          return session;
+          if (!userId) {
+            this.saveSession(baseSession);
+            return of(baseSession);
+          }
+
+          return this.http.get<BackendUser>(`${this.apiUrl}/${userId}`).pipe(
+            map((fullUser) => {
+              const session: LibrarianSession = {
+                token,
+                user: {
+                  _id: fullUser?._id ?? userId,
+                  firstName: fullUser?.firstName ?? baseSession.user.firstName ?? '',
+                  lastName: fullUser?.lastName ?? baseSession.user.lastName ?? '',
+                  email: fullUser?.email ?? baseSession.user.email ?? email,
+                  type: fullUser?.type ?? baseSession.user.type ?? '',
+                  school: fullUser?.school ?? ''
+                }
+              };
+
+              this.saveSession(session);
+              return session;
+            }),
+            catchError(() => {
+              this.saveSession(baseSession);
+              return of(baseSession);
+            })
+          );
         })
       );
   }
@@ -74,22 +115,22 @@ export class LibrarianAuthService {
     try {
       const parsed = JSON.parse(raw) as LibrarianSession;
 
-      if (!parsed?.user && parsed?.token) {
-        const tokenPayload = this.readTokenPayload(parsed.token);
-
-        return {
-          token: parsed.token,
-          user: {
-            _id: tokenPayload?.sub ?? tokenPayload?.id ?? '',
-            firstName: tokenPayload?.firstName ?? '',
-            lastName: tokenPayload?.lastName ?? '',
-            email: tokenPayload?.email ?? '',
-            type: tokenPayload?.type ?? ''
-          }
-        };
+      if (!parsed?.token) {
+        this.logout();
+        return null;
       }
 
-      return parsed;
+      return {
+        token: parsed.token,
+        user: {
+          _id: parsed.user?._id ?? '',
+          firstName: parsed.user?.firstName ?? '',
+          lastName: parsed.user?.lastName ?? '',
+          email: parsed.user?.email ?? '',
+          type: parsed.user?.type ?? '',
+          school: parsed.user?.school ?? ''
+        }
+      };
     } catch {
       this.logout();
       return null;
@@ -103,6 +144,10 @@ export class LibrarianAuthService {
   isLibrarian(): boolean {
     const type = this.getSession()?.user?.type ?? '';
     return type.toLowerCase() === 'librarian';
+  }
+
+  private saveSession(session: LibrarianSession): void {
+    localStorage.setItem(this.storageKey, JSON.stringify(session));
   }
 
   private readTokenPayload(token: string): any | null {
