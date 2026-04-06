@@ -1,3 +1,4 @@
+<!-- src/app/pages/user-area/user-area.html -->
 <div class="user-area user-area--mapMode">
   <div class="ua-shell">
     <div class="ua-topHeader">
@@ -110,9 +111,6 @@
           <div class="ua-libraryItem" *ngFor="let library of libraries">
             <div class="ua-libraryItemMain" (click)="openLibraryRooms(library)">
               <div class="ua-libraryItemName">{{ library.name }}</div>
-              <div class="ua-libraryItemCoords">
-                {{ library.lat }}, {{ library.lng }}
-              </div>
             </div>
 
             <div class="ua-libraryItemActions">
@@ -122,6 +120,14 @@
                 (click)="openLibraryRooms(library)"
               >
                 View rooms
+              </button>
+
+              <button
+                class="btn-ghost ua-libraryItemBtn"
+                type="button"
+                (click)="openDirections(library)"
+              >
+                How to get there
               </button>
 
               <button

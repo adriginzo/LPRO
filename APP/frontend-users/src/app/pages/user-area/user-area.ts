@@ -1,3 +1,4 @@
+// src/app/pages/user-area/user-area.ts
 import { Component, AfterViewInit, OnDestroy, NgZone, ChangeDetectorRef } from '@angular/core';
 import { CommonModule, DatePipe } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
@@ -327,36 +328,78 @@ export class UserAreaComponent implements AfterViewInit, OnDestroy {
     this.calendarOpenRoomTitle = '';
   }
 
-  deleteReservation(reserva: ReservaVM): void {
-  const reservationId = reserva?._id?.trim();
+  openDirections(library: LibraryPoint): void {
+    if (!library || !Number.isFinite(library.lat) || !Number.isFinite(library.lng)) {
+      alert('Library coordinates not available');
+      return;
+    }
 
-  if (!reservationId) {
-    alert('Reservation id not found');
-    return;
-  }
+    const destination = `${library.lat},${library.lng}`;
 
-  if (this.isDeletingReservation) {
-    return;
-  }
+    const openGoogleMaps = (origin?: string) => {
+      let mapsUrl =
+        `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(destination)}`;
 
-  this.isDeletingReservation = true;
-
-  this.http.delete<void>(`${this.reservasApiUrl}/${reservationId}`).subscribe({
-    next: () => {
-      this.isDeletingReservation = false;
-
-      if (this.editReservationOpenForId === reservationId) {
-        this.cancelEditReservation();
+      if (origin) {
+        mapsUrl += `&origin=${encodeURIComponent(origin)}`;
       }
 
-      this.refreshData$.next();
-    },
-    error: (error) => {
-      this.isDeletingReservation = false;
-      alert(this.getErrorMessage(error, 'The reservation could not be deleted'));
-    },
-  });
-}
+      mapsUrl += '&travelmode=walking';
+
+      window.location.href = mapsUrl;
+    };
+
+    if (!('geolocation' in navigator)) {
+      openGoogleMaps();
+      return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const origin = `${position.coords.latitude},${position.coords.longitude}`;
+        openGoogleMaps(origin);
+      },
+      () => {
+        openGoogleMaps();
+      },
+      {
+        enableHighAccuracy: true,
+        timeout: 10000,
+        maximumAge: 60000,
+      }
+    );
+  }
+
+  deleteReservation(reserva: ReservaVM): void {
+    const reservationId = reserva?._id?.trim();
+
+    if (!reservationId) {
+      alert('Reservation id not found');
+      return;
+    }
+
+    if (this.isDeletingReservation) {
+      return;
+    }
+
+    this.isDeletingReservation = true;
+
+    this.http.delete<void>(`${this.reservasApiUrl}/${reservationId}`).subscribe({
+      next: () => {
+        this.isDeletingReservation = false;
+
+        if (this.editReservationOpenForId === reservationId) {
+          this.cancelEditReservation();
+        }
+
+        this.refreshData$.next();
+      },
+      error: (error) => {
+        this.isDeletingReservation = false;
+        alert(this.getErrorMessage(error, 'The reservation could not be deleted'));
+      },
+    });
+  }
 
   private filterCalendarReservations(reservas: ReservaApi[]): ReservaApi[] {
     const windowStart = this.startOfDay(new Date()).getTime();

@@ -30,6 +30,68 @@
   -webkit-backdrop-filter: blur(14px);
 }
 
+.monitor-hero__text {
+  min-width: 0;
+}
+
+.monitor-hero__actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-shrink: 0;
+}
+
+.monitor-logout-button {
+  appearance: none;
+  border: 1px solid rgba(99, 102, 241, 0.18);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(241, 245, 249, 0.92));
+  color: #1e293b;
+  min-height: 50px;
+  padding: 0 20px;
+  border-radius: 999px;
+  font-size: 0.96rem;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  cursor: pointer;
+  box-shadow:
+    0 12px 24px rgba(15, 23, 42, 0.06),
+    inset 0 1px 0 rgba(255, 255, 255, 0.7);
+  transition:
+    transform 0.18s ease,
+    box-shadow 0.18s ease,
+    border-color 0.18s ease,
+    background 0.18s ease,
+    color 0.18s ease;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
+.monitor-logout-button:hover {
+  transform: translateY(-1px);
+  border-color: rgba(79, 70, 229, 0.28);
+  color: #111827;
+  box-shadow:
+    0 16px 30px rgba(79, 70, 229, 0.12),
+    0 6px 14px rgba(15, 23, 42, 0.05),
+    inset 0 1px 0 rgba(255, 255, 255, 0.76);
+}
+
+.monitor-logout-button:active {
+  transform: translateY(0);
+  box-shadow:
+    0 8px 18px rgba(15, 23, 42, 0.06),
+    inset 0 1px 0 rgba(255, 255, 255, 0.65);
+}
+
+.monitor-logout-button:focus-visible {
+  outline: none;
+  border-color: rgba(79, 70, 229, 0.44);
+  box-shadow:
+    0 0 0 4px rgba(99, 102, 241, 0.14),
+    0 12px 24px rgba(15, 23, 42, 0.06);
+}
+
 .monitor-hero__eyebrow {
   font-size: 0.78rem;
   font-weight: 800;
@@ -571,6 +633,16 @@
   .monitor-hero {
     flex-direction: column;
     align-items: stretch;
+  }
+
+  .monitor-hero__actions {
+    width: 100%;
+    justify-content: stretch;
+  }
+
+  .monitor-logout-button {
+    width: 100%;
+    justify-content: center;
   }
 
   .monitor-title {
