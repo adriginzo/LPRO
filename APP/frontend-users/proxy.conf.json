@@ -1,0 +1,20 @@
+{
+  "/shuttle-api": {
+    "target": "https://shuttle.brain4mobility.com",
+    "secure": true,
+    "changeOrigin": true,
+    "pathRewrite": {
+      "^/shuttle-api": ""
+    },
+    "logLevel": "debug"
+  },
+  "/brain-assets": {
+    "target": "https://brain4mobility.com",
+    "secure": true,
+    "changeOrigin": true,
+    "pathRewrite": {
+      "^/brain-assets": ""
+    },
+    "logLevel": "debug"
+  }
+}

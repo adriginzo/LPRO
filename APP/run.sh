@@ -17,7 +17,7 @@ echo "Starting admin-salas..."
 gnome-terminal -- bash -c "cd admin-salas && ng serve; exec bash"
 
 echo "Starting frontend-users..."
-gnome-terminal -- bash -c "cd frontend-users && ng serve; exec bash"
+gnome-terminal -- bash -c "cd frontend-users && npm start; exec bash"
 
 echo "Starting frontend-librarian..."
 gnome-terminal -- bash -c "cd frontend-librarian && ng serve; exec bash"

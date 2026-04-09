@@ -1,0 +1,67 @@
+<div class="shuttle-page">
+  <div class="shuttle-shell">
+    <div class="shuttle-header">
+      <div class="shuttle-headingBlock">
+        <div class="shuttle-accent"></div>
+        <h1 class="shuttle-title">Shuttle</h1>
+        <p class="shuttle-subtitle">Real-time shuttle location and live status.</p>
+      </div>
+
+      <div class="shuttle-headerActions">
+        <button class="shuttle-backBtn" type="button" (click)="goBack()">
+          Back to Bookit
+        </button>
+      </div>
+    </div>
+
+    <div class="shuttle-mapCard">
+      <div class="shuttle-overlayCards">
+        <div class="shuttle-infoCard">
+          <div class="shuttle-infoLabel">Status</div>
+          <div class="shuttle-infoValue">
+            {{ loading ? 'Loading…' : statusLabel }}
+          </div>
+          <div class="shuttle-infoMeta">
+            {{ errorMessage ? errorMessage : positionUpdatedLabel }}
+          </div>
+        </div>
+
+        <div class="shuttle-infoCard">
+          <div class="shuttle-infoLabel">Occupancy</div>
+          <div class="shuttle-infoValue">
+            {{ loading ? 'Loading…' : occupancyValue }}
+          </div>
+          <div class="shuttle-infoMeta">
+            {{ errorMessage ? 'Waiting for next update' : occupancyUpdatedLabel }}
+          </div>
+        </div>
+      </div>
+
+      <div id="shuttle-map" class="shuttle-map"></div>
+    </div>
+
+    <div class="shuttle-detailsGrid">
+      <div class="shuttle-detailCard">
+        <div class="shuttle-detailLabel">Coordinates</div>
+        <div class="shuttle-detailValue">{{ coordinatesLabel }}</div>
+      </div>
+
+      <div class="shuttle-detailCard">
+        <div class="shuttle-detailLabel">Endpoint status</div>
+        <div class="shuttle-detailValue">
+          {{ errorMessage ? 'Unavailable' : 'Connected' }}
+        </div>
+      </div>
+
+      <div class="shuttle-detailCard">
+        <div class="shuttle-detailLabel">Refresh interval</div>
+        <div class="shuttle-detailValue">Every 5 seconds</div>
+      </div>
+
+      <div class="shuttle-detailCard">
+        <div class="shuttle-detailLabel">Raw status</div>
+        <div class="shuttle-detailValue">{{ lastStatusRaw?.status || '—' }}</div>
+      </div>
+    </div>
+  </div>
+</div>

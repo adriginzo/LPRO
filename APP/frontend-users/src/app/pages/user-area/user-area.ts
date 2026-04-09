@@ -2,6 +2,7 @@
 import { Component, AfterViewInit, OnDestroy, NgZone, ChangeDetectorRef } from '@angular/core';
 import { CommonModule, DatePipe } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
+import { Router } from '@angular/router';
 import { AuthService } from '../../services/auth';
 import {
   Observable,
@@ -152,7 +153,8 @@ export class UserAreaComponent implements AfterViewInit, OnDestroy {
     private auth: AuthService,
     private http: HttpClient,
     private ngZone: NgZone,
-    private cdr: ChangeDetectorRef
+    private cdr: ChangeDetectorRef,
+    private router: Router
   ) {
     this.isAdmin = this.auth.isAdmin();
 
@@ -699,6 +701,10 @@ export class UserAreaComponent implements AfterViewInit, OnDestroy {
 
     const adminUrl = `http://100.80.240.31:4200/admin-salas?token=${encodeURIComponent(token)}`;
     window.location.href = adminUrl;
+  }
+
+  goToShuttle() {
+    this.router.navigate(['/shuttle']);
   }
 
   logout() {
