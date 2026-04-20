@@ -24,7 +24,7 @@
       </article>
 
       <article class="summary-card summary-card--busy">
-        <span class="summary-card__label">Occupied</span>
+        <span class="summary-card__label">Unavailable</span>
         <span class="summary-card__value">{{ summary.occupiedRooms }}</span>
       </article>
 
@@ -40,7 +40,12 @@
       </div>
 
       <div class="alerts-list" *ngIf="alerts.length > 0">
-        <article class="alert-card" *ngFor="let alert of alerts; trackBy: trackByAlert">
+        <article
+          class="alert-card"
+          *ngFor="let alert of alerts; trackBy: trackByAlert"
+          [class.alert-card--warning]="alert.severity === 'warning'"
+          [class.alert-card--danger]="alert.severity === 'danger'"
+        >
           <div class="alert-card__icon">!</div>
 
           <div class="alert-card__content">
@@ -50,7 +55,7 @@
             </div>
           </div>
 
-          <div class="alert-card__value">{{ alert.ruidoDb }} dB</div>
+          <div class="alert-card__value">{{ alert.ruidoDb }}</div>
         </article>
       </div>
     </section>
@@ -59,8 +64,9 @@
       <article
         class="room-panel"
         *ngFor="let s of salas; trackBy: trackBySala"
-        [class.room-panel--free]="s.isFree"
-        [class.room-panel--occupied]="!s.isFree"
+        [class.room-panel--free]="s.roomStatus === 'free'"
+        [class.room-panel--reserved]="s.roomStatus === 'reserved'"
+        [class.room-panel--occupied]="s.roomStatus === 'occupied'"
         [class.room-panel--flash]="s.flash.panel"
       >
         <header class="room-panel__header">
@@ -71,15 +77,16 @@
 
           <span
             class="room-state"
-            [class.room-state--free]="s.isFree"
-            [class.room-state--busy]="!s.isFree"
+            [class.room-state--free]="s.roomStatus === 'free'"
+            [class.room-state--reserved]="s.roomStatus === 'reserved'"
+            [class.room-state--busy]="s.roomStatus === 'occupied'"
             [class.room-state--flash]="s.flash.status"
           >
-            {{ s.isFree ? 'Free' : 'Occupied' }}
+            {{ s.stateLabel }}
           </span>
         </header>
 
-        <div class="room-panel__body" *ngIf="!s.isFree; else freePanel">
+        <div class="room-panel__body" *ngIf="s.roomStatus === 'occupied'">
           <section
             class="hero-metric hero-metric--people"
             [class.hero-metric--flash]="s.flash.people"
@@ -90,45 +97,72 @@
 
           <section
             class="hero-metric hero-metric--noise"
-            [class.hero-metric--noise-good]="s.noiseLevel === 'good'"
             [class.hero-metric--noise-warning]="s.noiseLevel === 'warning'"
             [class.hero-metric--noise-danger]="s.noiseLevel === 'danger'"
             [class.hero-metric--flash]="s.flash.noise"
           >
             <span class="hero-metric__label">Noise level</span>
-            <span class="hero-metric__value">{{ s.ruidoDb }} dB</span>
+            <span class="hero-metric__value">{{ s.ruidoDb }}</span>
           </section>
 
           <section
             class="detail-strip"
             [class.detail-strip--flash]="s.flash.reservedBy"
           >
-            <span class="detail-strip__label">Last reserved by</span>
+            <span class="detail-strip__label">{{ s.responsibleLabel }}</span>
             <span class="detail-strip__value">{{ s.displayReservedBy }}</span>
           </section>
         </div>
 
-        <ng-template #freePanel>
-          <div class="room-panel__body room-panel__body--free">
-            <section class="available-box" [class.available-box--flash]="s.flash.status">
-              <div class="available-box__icon">✓</div>
-              <div class="available-box__content">
-                <div class="available-box__title">Available now</div>
-                <div class="available-box__text">
-                  No people are currently detected in this room.
-                </div>
+        <div class="room-panel__body room-panel__body--free" *ngIf="s.roomStatus === 'reserved'">
+          <section class="reserved-box" [class.reserved-box--flash]="s.flash.status">
+            <div class="reserved-box__icon">⌛</div>
+            <div class="reserved-box__content">
+              <div class="reserved-box__title">Reserved right now</div>
+              <div class="reserved-box__text">
+                {{ s.activeReservationWindow || 'This room has an active reservation and should remain blocked.' }}
               </div>
-            </section>
+            </div>
+          </section>
 
-            <section
-              class="detail-strip"
-              [class.detail-strip--flash]="s.flash.reservedBy"
-            >
-              <span class="detail-strip__label">Last reserved by</span>
-              <span class="detail-strip__value">{{ s.displayReservedBy }}</span>
-            </section>
-          </div>
-        </ng-template>
+          <section
+            class="detail-strip"
+            [class.detail-strip--flash]="s.flash.reservedBy"
+          >
+            <span class="detail-strip__label">{{ s.responsibleLabel }}</span>
+            <span class="detail-strip__value">{{ s.displayReservedBy }}</span>
+          </section>
+        </div>
+
+        <div class="room-panel__body room-panel__body--free" *ngIf="s.roomStatus === 'free'">
+          <section class="available-box" [class.available-box--flash]="s.flash.status">
+            <div class="available-box__icon">✓</div>
+            <div class="available-box__content">
+              <div class="available-box__title">Available now</div>
+              <div class="available-box__text">
+                No people are currently detected and there is no active reservation.
+              </div>
+            </div>
+          </section>
+
+          <section
+            class="detail-strip"
+            [class.detail-strip--flash]="s.flash.reservedBy"
+          >
+            <span class="detail-strip__label">{{ s.responsibleLabel }}</span>
+            <span class="detail-strip__value">{{ s.displayReservedBy }}</span>
+          </section>
+        </div>
+
+        <footer class="room-panel__footer">
+          <button
+            type="button"
+            class="room-panel__actionButton"
+            (click)="openRoomReservations(s)"
+          >
+            View reservations
+          </button>
+        </footer>
       </article>
 
       <div class="empty-state" *ngIf="salas.length === 0">
@@ -136,6 +170,60 @@
       </div>
     </section>
   </section>
+
+  <div
+    class="monitor-modalOverlay"
+    *ngIf="roomReservationsOpenForId"
+    (click)="closeRoomReservations()"
+  >
+    <div class="monitor-modal" (click)="$event.stopPropagation()">
+      <div class="monitor-modal__header">
+        <div>
+          <h3 class="monitor-modal__title">Room reservations</h3>
+          <p class="monitor-modal__subtitle">{{ roomReservationsTitle }}</p>
+        </div>
+
+        <button
+          type="button"
+          class="monitor-modal__close"
+          (click)="closeRoomReservations()"
+        >
+          ×
+        </button>
+      </div>
+
+      <div class="monitor-modal__body" *ngIf="roomReservations$ | async as reservations">
+        <div class="monitor-modal__empty" *ngIf="reservations.length === 0">
+          No reservations recorded for this room.
+        </div>
+
+        <div class="reservation-list" *ngIf="reservations.length > 0">
+          <article
+            class="reservation-card"
+            *ngFor="let reservation of reservations; trackBy: trackByRoomReservation"
+          >
+            <div class="reservation-card__top">
+              <div>
+                <div class="reservation-card__title">{{ reservation.userName }}</div>
+                <div class="reservation-card__subtitle">
+                  {{ reservation.horaEntrada | date:'short' }} → {{ reservation.horaSalida | date:'short' }}
+                </div>
+              </div>
+
+              <span
+                class="reservation-state"
+                [class.reservation-state--active]="reservation.status === 'active'"
+                [class.reservation-state--upcoming]="reservation.status === 'upcoming'"
+                [class.reservation-state--past]="reservation.status === 'past'"
+              >
+                {{ reservation.statusLabel }}
+              </span>
+            </div>
+          </article>
+        </div>
+      </div>
+    </div>
+  </div>
 
   <ng-template #loading>
     <div class="empty-state">Loading rooms…</div>

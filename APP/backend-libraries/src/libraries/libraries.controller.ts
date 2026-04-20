@@ -12,6 +12,11 @@ export class LibrariesController {
     return this.librariesService.findAll();
   }
 
+  @Get('by-name/:name')
+  findByName(@Param('name') name: string) {
+    return this.librariesService.findByName(name);
+  }
+
   @Get(':id')
   findOne(@Param('id') id: string) {
     return this.librariesService.findOne(id);

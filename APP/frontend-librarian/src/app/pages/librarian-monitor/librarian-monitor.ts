@@ -1,20 +1,27 @@
 import { Component } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { HttpClient } from '@angular/common/http';
 import { Router } from '@angular/router';
 import {
+  BehaviorSubject,
   catchError,
+  combineLatest,
   defer,
+  forkJoin,
   map,
   Observable,
   of,
   repeat,
   scan,
-  shareReplay
+  shareReplay,
 } from 'rxjs';
 import { SalasService, Sala } from '../../services/salas';
 import { LibrarianAuthService } from '../../services/librarian-auth';
 
-type NoiseLevel = 'good' | 'warning' | 'danger';
+type NoiseLevel = 'warning' | 'danger';
+type AlertSeverity = 'default' | 'warning' | 'danger';
+type RoomStatus = 'free' | 'reserved' | 'occupied';
+type ReservationStatus = 'active' | 'upcoming' | 'past';
 
 type FlashUntil = {
   panel: number;
@@ -32,11 +39,33 @@ type FlashState = {
   reservedBy: boolean;
 };
 
+type ReservaApi = {
+  _id: string;
+  salaId: string;
+  facultad: string;
+  numeroSala: number;
+  userId: string;
+  userName: string;
+  horaEntrada: string | Date;
+  horaSalida: string | Date;
+};
+
+type RoomReservationVM = ReservaApi & {
+  status: ReservationStatus;
+  statusLabel: string;
+};
+
 type SalaVM = Sala & {
   isFree: boolean;
+  roomStatus: RoomStatus;
+  stateLabel: string;
+  hasActiveReservation: boolean;
   noiseLevel: NoiseLevel | null;
+  alertSeverity: AlertSeverity;
   showNoiseAlert: boolean;
   displayReservedBy: string;
+  responsibleLabel: string;
+  activeReservationWindow: string;
   flashUntil: FlashUntil;
   flash: FlashState;
 };
@@ -47,6 +76,7 @@ type NoiseAlert = {
   numeroSala: number;
   ruidoDb: number;
   alert: number;
+  severity: AlertSeverity;
 };
 
 type MonitorSummary = {
@@ -54,6 +84,11 @@ type MonitorSummary = {
   freeRooms: number;
   occupiedRooms: number;
   activeAlerts: number;
+};
+
+type MonitorPayload = {
+  salas: Sala[];
+  reservas: ReservaApi[];
 };
 
 const LIVE_POLL_DELAY_MS = 120;
@@ -72,43 +107,86 @@ export class LibrarianMonitorComponent {
   alerts$: Observable<NoiseAlert[]>;
   summary$: Observable<MonitorSummary>;
   lastUpdate$: Observable<Date>;
+  roomReservations$: Observable<RoomReservationVM[]>;
+
+  roomReservationsOpenForId: string | null = null;
+  roomReservationsTitle = '';
+
+  private readonly reservasApiUrl = 'http://100.80.240.31:3000/reservas';
+  private readonly selectedRoomReservationsId$ = new BehaviorSubject<string>('');
 
   constructor(
     private salasService: SalasService,
     private auth: LibrarianAuthService,
-    private router: Router
+    private router: Router,
+    private http: HttpClient
   ) {
     const session = this.auth.getSession();
     this.librarianName = (session?.user?.firstName ?? '').trim() || 'Librarian';
 
-    this.salas$ = defer(() => {
+    const monitorData$ = defer(() => {
       const librarianSchool = this.normalizeText(
         this.auth.getSession()?.user?.school ?? ''
       );
 
-      return this.salasService.getSalas().pipe(
-        map((salas) => {
+      return forkJoin({
+        salas: this.salasService.getSalas().pipe(
+          catchError(() => of([] as Sala[]))
+        ),
+        reservas: this.http.get<ReservaApi[]>(this.reservasApiUrl).pipe(
+          catchError(() => of([] as ReservaApi[]))
+        )
+      }).pipe(
+        map(({ salas, reservas }) => {
           if (!librarianSchool) {
-            return [];
+            return {
+              salas: [] as Sala[],
+              reservas: [] as ReservaApi[]
+            };
           }
 
-          return salas.filter((s) => {
+          const filteredSalas = salas.filter((s) => {
             const roomFaculty = this.normalizeText(s.facultad ?? '');
             return roomFaculty === librarianSchool;
           });
+
+          const roomIds = new Set(
+            filteredSalas
+              .map((s) => (s._id || '').trim())
+              .filter(Boolean)
+          );
+
+          const filteredReservas = reservas.filter((r) => {
+            const roomId = (r.salaId || '').trim();
+            return roomIds.has(roomId);
+          });
+
+          return {
+            salas: filteredSalas,
+            reservas: filteredReservas
+          };
         }),
-        catchError(() => of([] as Sala[]))
+        catchError(() =>
+          of({
+            salas: [] as Sala[],
+            reservas: [] as ReservaApi[]
+          })
+        )
       );
     }).pipe(
       repeat({ delay: LIVE_POLL_DELAY_MS }),
-      map((salas) =>
-        [...salas].sort(
+      shareReplay({ bufferSize: 1, refCount: true })
+    );
+
+    this.salas$ = monitorData$.pipe(
+      scan((previousSalas, payload) => {
+        const currentSalas = [...payload.salas].sort(
           (a, b) =>
             a.facultad.localeCompare(b.facultad) ||
             a.numeroSala - b.numeroSala
-        )
-      ),
-      scan((previousSalas, currentSalas) => {
+        );
+
+        const reservationsByRoom = this.groupReservationsByRoom(payload.reservas);
         const previousMap = new Map(
           previousSalas.map((s) => [this.getSalaKey(s), s])
         );
@@ -118,14 +196,54 @@ export class LibrarianMonitorComponent {
           const key = this.getSalaKey(s);
           const previous = previousMap.get(key);
 
-          const isFree = (s.personasDentro ?? 0) === 0;
-          const noiseLevel = isFree ? null : this.getNoiseLevel(s.ruidoDb ?? 0);
+          const roomReservations = this.toRoomReservationsVM(
+            reservationsByRoom.get((s._id || '').trim()) || [],
+            now
+          );
+
+          const activeReservation =
+            roomReservations.find((r) => r.status === 'active') || null;
+
+          const hasPeople = (s.personasDentro ?? 0) > 0;
+          const hasActiveReservation = !!activeReservation;
+
+          const roomStatus: RoomStatus = hasPeople
+            ? 'occupied'
+            : hasActiveReservation
+            ? 'reserved'
+            : 'free';
+
+          const stateLabel =
+            roomStatus === 'occupied'
+              ? 'Occupied'
+              : roomStatus === 'reserved'
+              ? 'Reserved'
+              : 'Free';
+
+          const noiseLevel =
+            roomStatus === 'occupied'
+              ? this.getNoiseLevel(s.ruidoDb ?? 0)
+              : null;
+
+          const alertSeverity = this.getAlertSeverity(s.ruidoDb ?? 0);
+
           const displayReservedBy =
-            (s.ultimoReservadoPor ?? '').trim() || 'No reservation recorded';
+            (activeReservation?.userName ?? '').trim() ||
+            (s.ultimoReservadoPor ?? '').trim() ||
+            'No reservation recorded';
+
+          const responsibleLabel = activeReservation
+            ? 'Reserved by'
+            : 'Last reserved by';
+
+          const activeReservationWindow = activeReservation
+            ? `${this.formatDateTime(activeReservation.horaEntrada)} → ${this.formatDateTime(
+                activeReservation.horaSalida
+              )}`
+            : '';
 
           const previousReservedBy =
-            (previous?.displayReservedBy ?? previous?.ultimoReservadoPor ?? '').trim() ||
-            'No reservation recorded';
+            (previous?.displayReservedBy ?? '').trim() || 'No reservation recorded';
 
           const peopleChanged =
             !!previous && (previous.personasDentro ?? 0) !== (s.personasDentro ?? 0);
@@ -134,10 +252,12 @@ export class LibrarianMonitorComponent {
             !!previous && (previous.ruidoDb ?? 0) !== (s.ruidoDb ?? 0);
 
           const reservedByChanged =
-            !!previous && previousReservedBy !== displayReservedBy;
+            !!previous &&
+            (previousReservedBy !== displayReservedBy ||
+              previous.activeReservationWindow !== activeReservationWindow);
 
           const statusChanged =
-            !!previous && previous.isFree !== isFree;
+            !!previous && previous.roomStatus !== roomStatus;
 
           const anyChanged =
             peopleChanged || noiseChanged || reservedByChanged || statusChanged;
@@ -165,15 +285,39 @@ export class LibrarianMonitorComponent {
 
           return {
             ...s,
-            isFree,
+            isFree: roomStatus === 'free',
+            roomStatus,
+            stateLabel,
+            hasActiveReservation,
             noiseLevel,
+            alertSeverity,
             showNoiseAlert: (s.alert ?? 0) !== 0,
             displayReservedBy,
+            responsibleLabel,
+            activeReservationWindow,
             flashUntil,
             flash
           } as SalaVM;
         });
       }, [] as SalaVM[]),
+      shareReplay({ bufferSize: 1, refCount: true })
+    );
+
+    this.roomReservations$ = combineLatest([
+      monitorData$,
+      this.selectedRoomReservationsId$
+    ]).pipe(
+      map(([payload, selectedRoomId]) => {
+        const roomId = (selectedRoomId || '').trim();
+        if (!roomId) {
+          return [];
+        }
+
+        return this.toRoomReservationsVM(
+          payload.reservas.filter((r) => (r.salaId || '').trim() === roomId),
+          Date.now()
+        );
+      }),
       shareReplay({ bufferSize: 1, refCount: true })
     );
 
@@ -191,7 +335,8 @@ export class LibrarianMonitorComponent {
             facultad: s.facultad,
             numeroSala: s.numeroSala,
             ruidoDb: s.ruidoDb ?? 0,
-            alert: s.alert ?? 0
+            alert: s.alert ?? 0,
+            severity: s.alertSeverity
           }))
       ),
       shareReplay({ bufferSize: 1, refCount: true })
@@ -200,7 +345,7 @@ export class LibrarianMonitorComponent {
     this.summary$ = this.salas$.pipe(
       map((salas) => {
         const totalRooms = salas.length;
-        const freeRooms = salas.filter((s) => s.isFree).length;
+        const freeRooms = salas.filter((s) => s.roomStatus === 'free').length;
         const occupiedRooms = totalRooms - freeRooms;
         const activeAlerts = salas.filter((s) => s.showNoiseAlert).length;
 
@@ -214,7 +359,7 @@ export class LibrarianMonitorComponent {
       shareReplay({ bufferSize: 1, refCount: true })
     );
 
-    this.lastUpdate$ = this.salas$.pipe(
+    this.lastUpdate$ = monitorData$.pipe(
       map(() => new Date()),
       shareReplay({ bufferSize: 1, refCount: true })
     );
@@ -225,18 +370,111 @@ export class LibrarianMonitorComponent {
     this.router.navigate(['/']);
   }
 
+  openRoomReservations(sala: SalaVM): void {
+    const roomId = (sala._id || '').trim();
+    if (!roomId) {
+      return;
+    }
+
+    this.roomReservationsOpenForId = roomId;
+    this.roomReservationsTitle = `${sala.facultad} · Room ${sala.numeroSala}`;
+    this.selectedRoomReservationsId$.next(roomId);
+  }
+
+  closeRoomReservations(): void {
+    this.roomReservationsOpenForId = null;
+    this.roomReservationsTitle = '';
+    this.selectedRoomReservationsId$.next('');
+  }
+
   private normalizeText(value: string): string {
     return (value ?? '').trim().toLowerCase();
   }
 
-  private getNoiseLevel(ruidoDb: number): NoiseLevel {
-    if (ruidoDb <= 40) return 'good';
-    if (ruidoDb <= 70) return 'warning';
-    return 'danger';
+  private getNoiseLevel(ruidoDb: number): NoiseLevel | null {
+    if (ruidoDb > 1500) return 'danger';
+    if (ruidoDb >= 1200) return 'warning';
+    return null;
+  }
+
+  private getAlertSeverity(ruidoDb: number): AlertSeverity {
+    if (ruidoDb > 1500) return 'danger';
+    if (ruidoDb >= 1200) return 'warning';
+    return 'default';
   }
 
   private getSalaKey(sala: Pick<Sala, '_id' | 'facultad' | 'numeroSala'>): string {
     return sala._id || `${sala.facultad}-${sala.numeroSala}`;
+  }
+
+  private groupReservationsByRoom(
+    reservas: ReservaApi[]
+  ): Map<string, ReservaApi[]> {
+    const result = new Map<string, ReservaApi[]>();
+
+    for (const reserva of reservas) {
+      const roomId = (reserva.salaId || '').trim();
+      if (!roomId) continue;
+
+      const current = result.get(roomId) || [];
+      current.push(reserva);
+      result.set(roomId, current);
+    }
+
+    return result;
+  }
+
+  private toRoomReservationsVM(
+    reservas: ReservaApi[],
+    nowMs: number
+  ): RoomReservationVM[] {
+    return [...reservas]
+      .map((reserva) => {
+        const start = new Date(reserva.horaEntrada as any).getTime();
+        const end = new Date(reserva.horaSalida as any).getTime();
+
+        let status: ReservationStatus = 'past';
+        let statusLabel = 'Past';
+
+        if (start <= nowMs && end > nowMs) {
+          status = 'active';
+          statusLabel = 'Active';
+        } else if (start > nowMs) {
+          status = 'upcoming';
+          statusLabel = 'Upcoming';
+        }
+
+        return {
+          ...reserva,
+          status,
+          statusLabel
+        };
+      })
+      .sort((a, b) => {
+        const order = { active: 0, upcoming: 1, past: 2 };
+        const statusDiff = order[a.status] - order[b.status];
+        if (statusDiff !== 0) {
+          return statusDiff;
+        }
+
+        const aStart = new Date(a.horaEntrada as any).getTime();
+        const bStart = new Date(b.horaEntrada as any).getTime();
+
+        if (a.status === 'past' && b.status === 'past') {
+          return bStart - aStart;
+        }
+
+        return aStart - bStart;
+      });
+  }
+
+  private formatDateTime(value: string | Date): string {
+    const date = new Date(value as any);
+    if (isNaN(date.getTime())) {
+      return 'Invalid date';
+    }
+
+    return date.toLocaleString();
   }
 
   trackBySala(index: number, sala: SalaVM): string {
@@ -245,5 +483,9 @@ export class LibrarianMonitorComponent {
 
   trackByAlert(index: number, alert: NoiseAlert): string {
     return alert.id || `${alert.facultad}-${alert.numeroSala}-${index}`;
+  }
+
+  trackByRoomReservation(index: number, reservation: RoomReservationVM): string {
+    return reservation._id || `${reservation.salaId}-${reservation.userId}-${index}`;
   }
 }

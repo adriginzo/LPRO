@@ -8,6 +8,7 @@ import {
   Observable,
   BehaviorSubject,
   Subject,
+  Subscription,
   combineLatest,
   map,
   shareReplay,
@@ -16,6 +17,7 @@ import {
   switchMap,
   merge,
   of,
+  catchError,
 } from 'rxjs';
 import { FormsModule } from '@angular/forms';
 
@@ -54,11 +56,29 @@ type ReservaVM = ReservaApi & {
   countdownValue: string;
 };
 
+type LibraryDay =
+  | 'monday'
+  | 'tuesday'
+  | 'wednesday'
+  | 'thursday'
+  | 'friday'
+  | 'saturday'
+  | 'sunday';
+
+type LibraryOpeningHour = {
+  day: LibraryDay;
+  isOpen: boolean;
+  openTime: string;
+  closeTime: string;
+};
+
 type LibraryApi = {
   _id: string;
   name: string;
   lat: number;
   lng: number;
+  openingHours?: LibraryOpeningHour[];
+  slots?: number;
 };
 
 type LibraryPoint = {
@@ -66,13 +86,18 @@ type LibraryPoint = {
   name: string;
   lat: number;
   lng: number;
+  openingHours: LibraryOpeningHour[];
+  slots: number;
 };
+
+type CalendarSlotState = 'free' | 'busy' | 'past';
 
 type CalendarSlotVM = {
   startIso: string;
   endIso: string;
   label: string;
   statusLabel: string;
+  state: CalendarSlotState;
 };
 
 type CalendarDayVM = {
@@ -80,10 +105,33 @@ type CalendarDayVM = {
   dayLabel: string;
   dateLabel: string;
   isToday: boolean;
+  isClosed: boolean;
+  openingLabel: string;
   slots: CalendarSlotVM[];
+  busySlots: CalendarSlotVM[];
 };
 
 type RoomCalendarMap = Record<string, CalendarDayVM[]>;
+
+const DAY_ORDER: LibraryDay[] = [
+  'monday',
+  'tuesday',
+  'wednesday',
+  'thursday',
+  'friday',
+  'saturday',
+  'sunday',
+];
+
+const JS_DAY_TO_LIBRARY_DAY: Record<number, LibraryDay> = {
+  0: 'sunday',
+  1: 'monday',
+  2: 'tuesday',
+  3: 'wednesday',
+  4: 'thursday',
+  5: 'friday',
+  6: 'saturday',
+};
 
 @Component({
   selector: 'app-user-area',
@@ -93,6 +141,8 @@ type RoomCalendarMap = Record<string, CalendarDayVM[]>;
   styleUrls: ['./user-area.css'],
 })
 export class UserAreaComponent implements AfterViewInit, OnDestroy {
+  readonly slotOptions = [5, 10, 15, 25, 30, 60];
+
   isAdmin = false;
 
   userName$: Observable<string>;
@@ -105,8 +155,10 @@ export class UserAreaComponent implements AfterViewInit, OnDestroy {
   private readonly calendarDaysCount = 7;
 
   private refreshData$ = new Subject<void>();
+  private librariesSub?: Subscription;
 
   salasRaw$: Observable<Sala[]>;
+  librariesRaw$: Observable<LibraryPoint[]>;
   faculties$: Observable<string[]>;
   salasFiltered$: Observable<SalaVM[]>;
   allReservationsRaw$: Observable<ReservaApi[]>;
@@ -120,13 +172,14 @@ export class UserAreaComponent implements AfterViewInit, OnDestroy {
   private search$ = new BehaviorSubject<string>('');
 
   reserveOpenForId: string | null = null;
-  reservationStart = '';
-  reservationEnd = '';
   isSavingReservation = false;
+  reserveLibraryInfoText = '';
 
   editReservationOpenForId: string | null = null;
   editReservationEnd = '';
   isSavingReservationEdit = false;
+  editStepSeconds = 1800;
+  editLibraryInfoText = '';
 
   isDeletingReservation = false;
 
@@ -148,6 +201,10 @@ export class UserAreaComponent implements AfterViewInit, OnDestroy {
   pendingLibraryLat: number | null = null;
   pendingLibraryLng: number | null = null;
   newLibraryName = '';
+  newLibrarySlots = 30;
+  newLibraryOpeningHours: LibraryOpeningHour[] = this.createDefaultOpeningHours();
+
+  private reserveSalaContext: SalaVM | null = null;
 
   constructor(
     private auth: AuthService,
@@ -174,9 +231,29 @@ export class UserAreaComponent implements AfterViewInit, OnDestroy {
 
     const refreshTrigger$ = merge(this.refreshData$, interval(30000)).pipe(startWith(0));
     const tick$ = interval(1000).pipe(startWith(0));
+    const scheduleTick$ = interval(30000).pipe(startWith(0));
 
     this.salasRaw$ = refreshTrigger$.pipe(
       switchMap(() => this.http.get<Sala[]>(this.salasApiUrl)),
+      shareReplay(1)
+    );
+
+    this.librariesRaw$ = refreshTrigger$.pipe(
+      switchMap(() =>
+        this.http.get<LibraryApi[]>(this.librariesApiUrl).pipe(
+          catchError(() => of([]))
+        )
+      ),
+      map((libraries) =>
+        libraries.map((lib) => ({
+          id: lib._id,
+          name: lib.name,
+          lat: lib.lat,
+          lng: lib.lng,
+          openingHours: this.normalizeOpeningHours(lib.openingHours),
+          slots: this.normalizeSlots(lib.slots),
+        }))
+      ),
       shareReplay(1)
     );
 
@@ -186,8 +263,15 @@ export class UserAreaComponent implements AfterViewInit, OnDestroy {
       shareReplay(1)
     );
 
-    this.roomCalendarMap$ = this.allReservationsRaw$.pipe(
-      map((reservas) => this.buildRoomCalendarMap(reservas)),
+    this.roomCalendarMap$ = combineLatest([
+      this.salasRaw$,
+      this.allReservationsRaw$,
+      this.librariesRaw$,
+      scheduleTick$,
+    ]).pipe(
+      map(([salas, reservas, libraries]) =>
+        this.buildRoomCalendarMap(salas, reservas, libraries, new Date())
+      ),
       shareReplay(1)
     );
 
@@ -258,12 +342,20 @@ export class UserAreaComponent implements AfterViewInit, OnDestroy {
       }),
       shareReplay(1)
     );
+
+    this.librariesSub = this.librariesRaw$.subscribe((libraries) => {
+      this.ngZone.run(() => {
+        this.libraries = libraries;
+        this.renderLibraryMarkers();
+        this.cdr.markForCheck();
+      });
+    });
   }
 
   async ngAfterViewInit(): Promise<void> {
     if (this.viewMode === 'map') {
       await this.initMap();
-      this.loadLibrariesFromApi();
+      this.renderLibraryMarkers();
       this.cdr.detectChanges();
     }
   }
@@ -275,6 +367,7 @@ export class UserAreaComponent implements AfterViewInit, OnDestroy {
       this.markersLayer = null;
     }
 
+    this.librariesSub?.unsubscribe();
     this.refreshData$.complete();
   }
 
@@ -317,7 +410,7 @@ export class UserAreaComponent implements AfterViewInit, OnDestroy {
       return roomCalendarMap[roomId];
     }
 
-    return roomCalendarMap['__empty__'] || [];
+    return this.createFallbackCalendarDays(new Date());
   }
 
   openRoomCalendar(sala: SalaVM) {
@@ -415,55 +508,130 @@ export class UserAreaComponent implements AfterViewInit, OnDestroy {
     });
   }
 
-  private buildRoomCalendarMap(reservas: ReservaApi[]): RoomCalendarMap {
-    const skeleton = this.createCalendarSkeleton();
-    const roomMap: RoomCalendarMap = {
-      __empty__: skeleton,
-    };
+  private buildRoomCalendarMap(
+    salas: Sala[],
+    reservas: ReservaApi[],
+    libraries: LibraryPoint[],
+    now: Date
+  ): RoomCalendarMap {
+    const result: RoomCalendarMap = {};
+    const reservationsByRoom = new Map<string, ReservaApi[]>();
 
     for (const reserva of reservas) {
       const roomId = (reserva.salaId || '').trim();
       if (!roomId) continue;
 
-      const start = new Date(reserva.horaEntrada as any);
-      const end = new Date(reserva.horaSalida as any);
-
-      if (isNaN(start.getTime()) || isNaN(end.getTime())) continue;
-
-      if (!roomMap[roomId]) {
-        roomMap[roomId] = this.cloneCalendarSkeleton(skeleton);
-      }
-
-      for (const day of roomMap[roomId]) {
-        const dayStart = this.parseDayKey(day.key);
-        const dayEnd = this.addDays(dayStart, 1);
-
-        if (start < dayEnd && end > dayStart) {
-          const slotStart = start > dayStart ? start : dayStart;
-          const slotEnd = end < dayEnd ? end : dayEnd;
-
-          day.slots.push({
-            startIso: slotStart.toISOString(),
-            endIso: slotEnd.toISOString(),
-            label: `${this.formatHourMinute(slotStart)} – ${this.formatHourMinute(slotEnd)}`,
-            statusLabel: 'Occupied',
-          });
-        }
-      }
+      const existing = reservationsByRoom.get(roomId) || [];
+      existing.push(reserva);
+      reservationsByRoom.set(roomId, existing);
     }
 
-    for (const roomId of Object.keys(roomMap)) {
-      roomMap[roomId].forEach((day) => {
-        day.slots.sort((a, b) => a.startIso.localeCompare(b.startIso));
-      });
+    for (const sala of salas) {
+      const roomId = (sala._id || '').trim();
+      if (!roomId) continue;
+
+      const library =
+        this.findLibraryByNameFromList(sala.facultad, libraries) ||
+        this.createFallbackLibrary(sala.facultad);
+
+      const roomReservations = reservationsByRoom.get(roomId) || [];
+
+      result[roomId] = this.buildCalendarDaysForRoom(
+        library,
+        roomReservations,
+        now
+      );
     }
 
-    return roomMap;
+    return result;
   }
 
-  private createCalendarSkeleton(): CalendarDayVM[] {
-    const today = this.startOfDay(new Date());
-    const todayKey = this.toDayKey(today);
+  private buildCalendarDaysForRoom(
+    library: LibraryPoint,
+    reservas: ReservaApi[],
+    now: Date
+  ): CalendarDayVM[] {
+    const today = this.startOfDay(now);
+
+    return Array.from({ length: this.calendarDaysCount }, (_, index) => {
+      const date = this.addDays(today, index);
+      const dayKey = this.toDayKey(date);
+      const dayConfig = this.getDayConfigForDate(library, date);
+
+      if (!dayConfig || !dayConfig.isOpen) {
+        return {
+          key: dayKey,
+          dayLabel: date.toLocaleDateString('en-GB', { weekday: 'short' }),
+          dateLabel: date.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }),
+          isToday: index === 0,
+          isClosed: true,
+          openingLabel: 'Closed',
+          slots: [],
+          busySlots: [],
+        };
+      }
+
+      const openDate = this.withTime(date, dayConfig.openTime);
+      const closeDate = this.withTime(date, dayConfig.closeTime);
+      const slotMinutes = library.slots || 30;
+
+      const slots: CalendarSlotVM[] = [];
+
+      for (
+        let slotStart = new Date(openDate);
+        slotStart.getTime() < closeDate.getTime();
+        slotStart = new Date(slotStart.getTime() + slotMinutes * 60 * 1000)
+      ) {
+        const slotEnd = new Date(slotStart.getTime() + slotMinutes * 60 * 1000);
+
+        if (slotEnd.getTime() > closeDate.getTime()) {
+          break;
+        }
+
+        const isBusy = reservas.some((reserva) => {
+          const reservaStart = new Date(reserva.horaEntrada as any).getTime();
+          const reservaEnd = new Date(reserva.horaSalida as any).getTime();
+
+          return reservaStart < slotEnd.getTime() && reservaEnd > slotStart.getTime();
+        });
+
+        const isPast = slotEnd.getTime() <= now.getTime();
+
+        const state: CalendarSlotState = isBusy
+          ? 'busy'
+          : isPast
+          ? 'past'
+          : 'free';
+
+        slots.push({
+          startIso: slotStart.toISOString(),
+          endIso: slotEnd.toISOString(),
+          label: `${this.formatHourMinute(slotStart)} – ${this.formatHourMinute(slotEnd)}`,
+          statusLabel:
+            state === 'busy'
+              ? 'Occupied'
+              : state === 'past'
+              ? 'Past'
+              : 'Available',
+          state,
+        });
+      }
+
+      return {
+        key: dayKey,
+        dayLabel: date.toLocaleDateString('en-GB', { weekday: 'short' }),
+        dateLabel: date.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }),
+        isToday: index === 0,
+        isClosed: false,
+        openingLabel: `${dayConfig.openTime} - ${dayConfig.closeTime}`,
+        slots,
+        busySlots: slots.filter((slot) => slot.state === 'busy'),
+      };
+    });
+  }
+
+  private createFallbackCalendarDays(now: Date): CalendarDayVM[] {
+    const today = this.startOfDay(now);
 
     return Array.from({ length: this.calendarDaysCount }, (_, index) => {
       const date = this.addDays(today, index);
@@ -472,57 +640,48 @@ export class UserAreaComponent implements AfterViewInit, OnDestroy {
         key: this.toDayKey(date),
         dayLabel: date.toLocaleDateString('en-GB', { weekday: 'short' }),
         dateLabel: date.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }),
-        isToday: this.toDayKey(date) === todayKey,
+        isToday: index === 0,
+        isClosed: false,
+        openingLabel: '',
         slots: [],
+        busySlots: [],
       };
     });
   }
 
-  private cloneCalendarSkeleton(days: CalendarDayVM[]): CalendarDayVM[] {
-    return days.map((day) => ({
-      ...day,
-      slots: [],
-    }));
+  formatSlotLabel(slot: number): string {
+    return slot === 60 ? '1 hour' : `${slot} minutes`;
   }
 
-  private startOfDay(date: Date): Date {
-    const result = new Date(date);
-    result.setHours(0, 0, 0, 0);
-    return result;
+  getDayLabel(day: LibraryDay): string {
+    switch (day) {
+      case 'monday':
+        return 'Monday';
+      case 'tuesday':
+        return 'Tuesday';
+      case 'wednesday':
+        return 'Wednesday';
+      case 'thursday':
+        return 'Thursday';
+      case 'friday':
+        return 'Friday';
+      case 'saturday':
+        return 'Saturday';
+      case 'sunday':
+        return 'Sunday';
+      default:
+        return day;
+    }
   }
 
-  private addDays(date: Date, days: number): Date {
-    const result = new Date(date);
-    result.setDate(result.getDate() + days);
-    return result;
-  }
+  getTodayOpeningText(library: LibraryPoint): string {
+    const config = this.getDayConfigForDate(library, new Date());
 
-  private toDayKey(date: Date): string {
-    const pad = (n: number) => String(n).padStart(2, '0');
-    return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
-  }
+    if (!config || !config.isOpen) {
+      return 'Closed today';
+    }
 
-  private parseDayKey(key: string): Date {
-    const [year, month, day] = key.split('-').map(Number);
-    return new Date(year, month - 1, day, 0, 0, 0, 0);
-  }
-
-  private formatHourMinute(date: Date): string {
-    const pad = (n: number) => String(n).padStart(2, '0');
-    return `${pad(date.getHours())}:${pad(date.getMinutes())}`;
-  }
-
-  private formatRemaining(diff: number): string {
-    if (!Number.isFinite(diff) || diff <= 0) return '0m 0s';
-
-    const totalSeconds = Math.floor(diff / 1000);
-    const hours = Math.floor(totalSeconds / 3600);
-    const minutes = Math.floor((totalSeconds % 3600) / 60);
-    const seconds = totalSeconds % 60;
-
-    return hours > 0
-      ? `${hours}h ${minutes}m ${seconds}s`
-      : `${minutes}m ${seconds}s`;
+    return `${config.openTime} - ${config.closeTime}`;
   }
 
   onSearchChange(value: string) {
@@ -534,46 +693,35 @@ export class UserAreaComponent implements AfterViewInit, OnDestroy {
 
   openReserveForm(sala: SalaVM) {
     this.reserveOpenForId = sala._id || null;
+    this.reserveSalaContext = sala;
 
-    const now = new Date();
-    const oneHourLater = new Date(now.getTime() + 60 * 60 * 1000);
+    const library = this.findLibraryByName(sala.facultad);
 
-    this.reservationStart = this.toDatetimeLocalValue(now);
-    this.reservationEnd = this.toDatetimeLocalValue(oneHourLater);
+    this.reserveLibraryInfoText = library
+      ? `${library.name} · ${this.getTodayOpeningText(library)} · Click an available slot to reserve it`
+      : 'Click an available slot to reserve it';
   }
 
-  cancelReservation() {
-    this.reserveOpenForId = null;
-    this.reservationStart = '';
-    this.reservationEnd = '';
-  }
-
-  confirmReservation() {
+  reserveSlot(slot: CalendarSlotVM) {
     if (!this.reserveOpenForId) {
       alert('Room id not found');
       return;
     }
 
-    if (!this.reservationStart || !this.reservationEnd) {
-      alert('Please select entry and exit times');
+    if (!this.currentUserId) {
+      alert('User id not found');
       return;
     }
 
-    const startDate = new Date(this.reservationStart);
-    const endDate = new Date(this.reservationEnd);
+    if (this.isSavingReservation || slot.state !== 'free') {
+      return;
+    }
+
+    const startDate = new Date(slot.startIso);
+    const endDate = new Date(slot.endIso);
 
     if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
-      alert('Invalid date');
-      return;
-    }
-
-    if (endDate <= startDate) {
-      alert('Exit time must be later than entry time');
-      return;
-    }
-
-    if (endDate.getTime() - startDate.getTime() > 3 * 60 * 60 * 1000) {
-      alert('The maximum reservation time is 3 hours');
+      alert('Invalid slot');
       return;
     }
 
@@ -581,7 +729,7 @@ export class UserAreaComponent implements AfterViewInit, OnDestroy {
 
     const body = {
       salaId: this.reserveOpenForId,
-      userId: this.currentUserId || '',
+      userId: this.currentUserId,
       userName: this.currentUserFullName || 'Usuario desconocido',
       horaEntrada: startDate.toISOString(),
       horaSalida: endDate.toISOString(),
@@ -600,6 +748,13 @@ export class UserAreaComponent implements AfterViewInit, OnDestroy {
     });
   }
 
+  cancelReservation() {
+    this.reserveOpenForId = null;
+    this.isSavingReservation = false;
+    this.reserveLibraryInfoText = '';
+    this.reserveSalaContext = null;
+  }
+
   openEditReservationForm(reserva: ReservaVM) {
     if (!reserva._id) return;
 
@@ -607,11 +762,21 @@ export class UserAreaComponent implements AfterViewInit, OnDestroy {
     this.editReservationEnd = reserva.horaSalida
       ? this.toDatetimeLocalValue(new Date(reserva.horaSalida as any))
       : '';
+
+    const library = this.findLibraryByName(reserva.facultad);
+    const slotMinutes = library?.slots ?? 30;
+
+    this.editStepSeconds = slotMinutes * 60;
+    this.editLibraryInfoText = library
+      ? `${library.name} · ${this.getTodayOpeningText(library)} · Reservation slots every ${this.formatSlotLabel(slotMinutes)}`
+      : `Reservation slots every ${this.formatSlotLabel(slotMinutes)}`;
   }
 
   cancelEditReservation() {
     this.editReservationOpenForId = null;
     this.editReservationEnd = '';
+    this.editStepSeconds = 1800;
+    this.editLibraryInfoText = '';
   }
 
   saveReservationEdit(reserva: ReservaVM) {
@@ -646,6 +811,18 @@ export class UserAreaComponent implements AfterViewInit, OnDestroy {
 
     if (newEnd.getTime() - currentStart.getTime() > 3 * 60 * 60 * 1000) {
       alert('The maximum reservation time is 3 hours');
+      return;
+    }
+
+    const library = this.findLibraryByName(reserva.facultad);
+    const rulesError = this.validateReservationAgainstLibraryRules(
+      currentStart,
+      newEnd,
+      library
+    );
+
+    if (rulesError) {
+      alert(rulesError);
       return;
     }
 
@@ -732,7 +909,7 @@ export class UserAreaComponent implements AfterViewInit, OnDestroy {
 
     setTimeout(async () => {
       await this.initMap();
-      this.loadLibrariesFromApi();
+      this.renderLibraryMarkers();
     }, 0);
   }
 
@@ -813,27 +990,6 @@ export class UserAreaComponent implements AfterViewInit, OnDestroy {
     }, 0);
   }
 
-  private loadLibrariesFromApi() {
-    this.http.get<LibraryApi[]>(this.librariesApiUrl).subscribe({
-      next: (libraries) => {
-        this.ngZone.run(() => {
-          this.libraries = libraries.map((lib) => ({
-            id: lib._id,
-            name: lib.name,
-            lat: lib.lat,
-            lng: lib.lng,
-          }));
-
-          this.renderLibraryMarkers();
-          this.cdr.detectChanges();
-        });
-      },
-      error: () => {
-        alert('Could not load libraries');
-      },
-    });
-  }
-
   private renderLibraryMarkers() {
     if (!this.L || !this.markersLayer) return;
 
@@ -872,10 +1028,11 @@ export class UserAreaComponent implements AfterViewInit, OnDestroy {
             library.lat = updatedLat;
             library.lng = updatedLng;
             this.renderLibraryMarkers();
+            this.refreshData$.next();
           },
           error: () => {
             alert('The library position could not be updated');
-            this.loadLibrariesFromApi();
+            this.refreshData$.next();
           },
         });
       });
@@ -891,6 +1048,9 @@ export class UserAreaComponent implements AfterViewInit, OnDestroy {
     this.pendingLibraryLat = null;
     this.pendingLibraryLng = null;
     this.newLibraryName = '';
+    this.newLibrarySlots = 30;
+    this.newLibraryOpeningHours = this.createDefaultOpeningHours();
+    this.refreshMapSizeSoon();
   }
 
   cancelAddLibraryMode() {
@@ -898,6 +1058,9 @@ export class UserAreaComponent implements AfterViewInit, OnDestroy {
     this.pendingLibraryLat = null;
     this.pendingLibraryLng = null;
     this.newLibraryName = '';
+    this.newLibrarySlots = 30;
+    this.newLibraryOpeningHours = this.createDefaultOpeningHours();
+    this.refreshMapSizeSoon();
   }
 
   saveNewLibrary() {
@@ -915,10 +1078,23 @@ export class UserAreaComponent implements AfterViewInit, OnDestroy {
       return;
     }
 
+    if (!this.slotOptions.includes(this.newLibrarySlots)) {
+      alert('Invalid reservation slot');
+      return;
+    }
+
+    const openingHoursError = this.validateOpeningHoursInput(this.newLibraryOpeningHours);
+    if (openingHoursError) {
+      alert(openingHoursError);
+      return;
+    }
+
     const body = {
       name,
       lat: this.pendingLibraryLat,
       lng: this.pendingLibraryLng,
+      slots: this.newLibrarySlots,
+      openingHours: this.newLibraryOpeningHours.map((day) => ({ ...day })),
     };
 
     this.http.post<LibraryApi>(this.librariesApiUrl, body).subscribe({
@@ -930,10 +1106,13 @@ export class UserAreaComponent implements AfterViewInit, OnDestroy {
             name: newLibrary.name,
             lat: newLibrary.lat,
             lng: newLibrary.lng,
+            openingHours: this.normalizeOpeningHours(newLibrary.openingHours),
+            slots: this.normalizeSlots(newLibrary.slots),
           },
         ];
         this.renderLibraryMarkers();
         this.cancelAddLibraryMode();
+        this.refreshData$.next();
       },
       error: () => {
         alert('The library could not be saved');
@@ -951,10 +1130,202 @@ export class UserAreaComponent implements AfterViewInit, OnDestroy {
       next: () => {
         this.libraries = this.libraries.filter((lib) => lib.id !== libraryId);
         this.renderLibraryMarkers();
+        this.refreshData$.next();
       },
       error: () => {
         alert('The library could not be deleted');
       },
     });
+  }
+
+  private createDefaultOpeningHours(): LibraryOpeningHour[] {
+    return DAY_ORDER.map((day) => ({
+      day,
+      isOpen: true,
+      openTime: '08:00',
+      closeTime: '21:00',
+    }));
+  }
+
+  private normalizeOpeningHours(
+    openingHours?: LibraryOpeningHour[]
+  ): LibraryOpeningHour[] {
+    const defaults = this.createDefaultOpeningHours();
+
+    for (const item of openingHours || []) {
+      const index = defaults.findIndex((d) => d.day === item.day);
+      if (index === -1) continue;
+
+      defaults[index] = {
+        day: item.day,
+        isOpen: typeof item.isOpen === 'boolean' ? item.isOpen : defaults[index].isOpen,
+        openTime: item.openTime || defaults[index].openTime,
+        closeTime: item.closeTime || defaults[index].closeTime,
+      };
+    }
+
+    return defaults;
+  }
+
+  private normalizeSlots(slots?: number): number {
+    const value = Number(slots ?? 30);
+    return this.slotOptions.includes(value) ? value : 30;
+  }
+
+  private validateOpeningHoursInput(openingHours: LibraryOpeningHour[]): string | null {
+    const timeRegex = /^([01]\d|2[0-3]):([0-5]\d)$/;
+
+    for (const day of openingHours) {
+      if (!day.isOpen) continue;
+
+      if (!timeRegex.test(day.openTime) || !timeRegex.test(day.closeTime)) {
+        return `Invalid time format for ${this.getDayLabel(day.day)}. Use HH:mm`;
+      }
+
+      if (this.timeToMinutes(day.closeTime) <= this.timeToMinutes(day.openTime)) {
+        return `Close time must be later than open time on ${this.getDayLabel(day.day)}`;
+      }
+    }
+
+    return null;
+  }
+
+  private findLibraryByName(name: string): LibraryPoint | null {
+    return this.findLibraryByNameFromList(name, this.libraries);
+  }
+
+  private findLibraryByNameFromList(name: string, libraries: LibraryPoint[]): LibraryPoint | null {
+    const target = (name || '').trim().toLowerCase();
+
+    return (
+      libraries.find(
+        (library) => (library.name || '').trim().toLowerCase() === target
+      ) || null
+    );
+  }
+
+  private createFallbackLibrary(name: string): LibraryPoint {
+    return {
+      id: '',
+      name: name || 'Library',
+      lat: 0,
+      lng: 0,
+      openingHours: this.createDefaultOpeningHours(),
+      slots: 30,
+    };
+  }
+
+  private getDayConfigForDate(
+    library: LibraryPoint | null,
+    date: Date
+  ): LibraryOpeningHour | null {
+    if (!library) return null;
+
+    const dayKey = JS_DAY_TO_LIBRARY_DAY[date.getDay()];
+    return library.openingHours.find((item) => item.day === dayKey) || null;
+  }
+
+  private validateReservationAgainstLibraryRules(
+    start: Date,
+    end: Date,
+    library: LibraryPoint | null
+  ): string | null {
+    if (!library) {
+      return null;
+    }
+
+    if (!this.isSameDay(start, end)) {
+      return 'Reservation start and end must be on the same day';
+    }
+
+    const dayConfig = this.getDayConfigForDate(library, start);
+
+    if (!dayConfig || !dayConfig.isOpen) {
+      return `The library is closed on ${this.getDayLabel(JS_DAY_TO_LIBRARY_DAY[start.getDay()])}`;
+    }
+
+    const openDate = this.withTime(start, dayConfig.openTime);
+    const closeDate = this.withTime(start, dayConfig.closeTime);
+
+    if (start < openDate || end > closeDate) {
+      return `Reservation must be within the library opening hours (${dayConfig.openTime} - ${dayConfig.closeTime})`;
+    }
+
+    if (!this.isAlignedToSlot(start, library.slots) || !this.isAlignedToSlot(end, library.slots)) {
+      return `Reservation times must match ${library.slots}-minute slots`;
+    }
+
+    return null;
+  }
+
+  private withTime(baseDate: Date, hhmm: string): Date {
+    const [hours, minutes] = hhmm.split(':').map(Number);
+    const result = new Date(baseDate);
+    result.setHours(hours, minutes, 0, 0);
+    return result;
+  }
+
+  private isAlignedToSlot(date: Date, slotMinutes: number): boolean {
+    return (
+      date.getSeconds() === 0 &&
+      date.getMilliseconds() === 0 &&
+      date.getMinutes() % slotMinutes === 0
+    );
+  }
+
+  private isSameDay(a: Date, b: Date): boolean {
+    return (
+      a.getFullYear() === b.getFullYear() &&
+      a.getMonth() === b.getMonth() &&
+      a.getDate() === b.getDate()
+    );
+  }
+
+  private startOfDay(date: Date): Date {
+    const result = new Date(date);
+    result.setHours(0, 0, 0, 0);
+    return result;
+  }
+
+  private addDays(date: Date, days: number): Date {
+    const result = new Date(date);
+    result.setDate(result.getDate() + days);
+    return result;
+  }
+
+  private toDayKey(date: Date): string {
+    const pad = (n: number) => String(n).padStart(2, '0');
+    return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+  }
+
+  private formatHourMinute(date: Date): string {
+    const pad = (n: number) => String(n).padStart(2, '0');
+    return `${pad(date.getHours())}:${pad(date.getMinutes())}`;
+  }
+
+  private formatRemaining(diff: number): string {
+    if (!Number.isFinite(diff) || diff <= 0) return '0m 0s';
+
+    const totalSeconds = Math.floor(diff / 1000);
+    const hours = Math.floor(totalSeconds / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    const seconds = totalSeconds % 60;
+
+    return hours > 0
+      ? `${hours}h ${minutes}m ${seconds}s`
+      : `${minutes}m ${seconds}s`;
+  }
+
+  private timeToMinutes(value: string): number {
+    const [hours, minutes] = value.split(':').map(Number);
+    return hours * 60 + minutes;
+  }
+
+  private refreshMapSizeSoon(): void {
+    setTimeout(() => {
+      if (this.map) {
+        this.map.invalidateSize();
+      }
+    }, 0);
   }
 }
