@@ -17,6 +17,9 @@ export class Sala {
   @Prop({ default: 0 })
   ruidoDb: number;
 
+  @Prop({ default: 0 })
+  alert: number;
+
   @Prop()
   horaEntrada?: Date;
 

@@ -8,6 +8,7 @@ export type Sala = {
   numeroSala: number;
   personasDentro: number;
   ruidoDb: number;
+  alert: number;
   horaEntrada: string | Date;
   horaSalida?: string | Date;
   ultimoReservadoPor?: string;

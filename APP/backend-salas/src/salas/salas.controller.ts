@@ -16,6 +16,33 @@ export class SalasController {
     return this.salasService.findOne(id);
   }
 
+  @Get('facultad/:facultad')
+  findByFacultad(@Param('facultad') facultad: string): Promise<Sala[]> {
+    return this.salasService.findByFacultad(facultad);
+  }
+
+  @Get('facultad/:facultad/numeroSala/:numeroSala')
+findByFacultadAndNumero(
+  @Param('facultad') facultad: string,
+  @Param('numeroSala') numeroSala: string,
+): Promise<Sala> {
+  // Convertimos numeroSala a número para que coincida con el tipo en la DB
+  return this.salasService.findByFacultadAndNumero(facultad, Number(numeroSala));
+}
+
+@Patch('facultad/:facultad/numeroSala/:numeroSala')
+async updateMetrics(
+  @Param('facultad') facultad: string,
+  @Param('numeroSala') numeroSala: string,
+  @Body() metrics: { ruidoDb?: number; alert?: number },
+) {
+  return this.salasService.updateMetricsByFacultadAndNumero(
+    facultad, 
+    Number(numeroSala), 
+    metrics
+  );
+}
+
   @Post()
   create(@Body() salaData: Partial<Sala>): Promise<Sala> {
     return this.salasService.create(salaData);

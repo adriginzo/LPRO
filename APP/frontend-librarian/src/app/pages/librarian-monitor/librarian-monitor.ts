@@ -46,6 +46,7 @@ type NoiseAlert = {
   facultad: string;
   numeroSala: number;
   ruidoDb: number;
+  alert: number;
 };
 
 type MonitorSummary = {
@@ -166,7 +167,7 @@ export class LibrarianMonitorComponent {
             ...s,
             isFree,
             noiseLevel,
-            showNoiseAlert: !isFree && noiseLevel === 'danger',
+            showNoiseAlert: (s.alert ?? 0) !== 0,
             displayReservedBy,
             flashUntil,
             flash
@@ -180,12 +181,17 @@ export class LibrarianMonitorComponent {
       map((salas) =>
         salas
           .filter((s) => s.showNoiseAlert)
-          .sort((a, b) => (b.ruidoDb ?? 0) - (a.ruidoDb ?? 0))
+          .sort((a, b) => {
+            const alertDiff = (b.alert ?? 0) - (a.alert ?? 0);
+            if (alertDiff !== 0) return alertDiff;
+            return (b.ruidoDb ?? 0) - (a.ruidoDb ?? 0);
+          })
           .map((s) => ({
             id: s._id || `${s.facultad}-${s.numeroSala}`,
             facultad: s.facultad,
             numeroSala: s.numeroSala,
-            ruidoDb: s.ruidoDb ?? 0
+            ruidoDb: s.ruidoDb ?? 0,
+            alert: s.alert ?? 0
           }))
       ),
       shareReplay({ bufferSize: 1, refCount: true })
